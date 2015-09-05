@@ -1,4 +1,4 @@
-package source
+package install
 
 import (
 	"errors"
@@ -6,7 +6,6 @@ import (
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/libgit2/git2go"
-	"github.com/ryane/mantl-api/repository"
 	"io/ioutil"
 	"os"
 	"path"
@@ -28,19 +27,18 @@ type Source struct {
 	Index      int
 }
 
-func (source *Source) Sync(client *consul.Client) error {
+func (install *Install) syncSource(source *Source) error {
 	switch source.SourceType {
 	case FileSystem:
-		return sync(source, source.Path, client)
+		return install.sync(source, source.Path)
 	case Git:
-		return syncGitSource(source, client)
+		return install.syncGitSource(source)
 	}
 	return errors.New("Unknown source type")
 }
 
-func (source *Source) LastUpdated(client *consul.Client) (time.Time, error) {
-	kv := client.KV()
-	kp, _, err := kv.Get(sourceTimestampKey(source), nil)
+func (install *Install) sourceLastUpdated(source *Source) (time.Time, error) {
+	kp, _, err := install.kv.Get(sourceTimestampKey(source), nil)
 	if err != nil || kp == nil {
 		return time.Time{}, err
 	}
@@ -53,10 +51,8 @@ func (source *Source) LastUpdated(client *consul.Client) (time.Time, error) {
 	return ts, nil
 }
 
-func sync(source *Source, sourcePath string, client *consul.Client) error {
-	kv := client.KV()
+func (install *Install) sync(source *Source, sourcePath string) error {
 	// TODO: lock or something to prevent simultaneous syncs?
-
 	err := filepath.Walk(sourcePath, func(filePath string, f os.FileInfo, e error) error {
 		if isSourceArtifact(filePath) {
 			relkey, err := filepath.Rel(sourcePath, filePath)
@@ -64,7 +60,7 @@ func sync(source *Source, sourcePath string, client *consul.Client) error {
 				data, err := ioutil.ReadFile(filePath)
 				if err == nil {
 					key := path.Join(source.rootKey(), relkey)
-					addSourceArtifact(kv, key, data)
+					install.addSourceArtifact(key, data)
 				} else {
 					log.Errorf("Could not read file %v: %v", filePath, err)
 				}
@@ -77,13 +73,13 @@ func sync(source *Source, sourcePath string, client *consul.Client) error {
 		return err
 	}
 
-	err = setName(source, kv)
+	err = install.setName(source)
 	if err != nil {
 		log.Errorf("Could not write %s name: %v", source.Name, err)
 		return err
 	}
 
-	err = setTimestamp(source, kv)
+	err = install.setTimestamp(source)
 	if err != nil {
 		log.Errorf("Could not write %s timestamp: %v", source.Name, err)
 		return err
@@ -92,7 +88,7 @@ func sync(source *Source, sourcePath string, client *consul.Client) error {
 	return nil
 }
 
-func syncGitSource(source *Source, client *consul.Client) error {
+func (install *Install) syncGitSource(source *Source) error {
 	temp, err := ioutil.TempDir(os.TempDir(), "mantl-install")
 	if err != nil {
 		return err
@@ -108,32 +104,32 @@ func syncGitSource(source *Source, client *consul.Client) error {
 
 	os.RemoveAll(path.Join(dest, ".git"))
 
-	return sync(source, dest, client)
+	return install.sync(source, dest)
 }
 
 func (source *Source) rootKey() string {
-	return path.Join(repository.RepositoryRoot, fmt.Sprintf("%d", source.Index))
+	return path.Join(RepositoryRoot, fmt.Sprintf("%d", source.Index))
 }
 
 func sourceTimestampKey(source *Source) string {
 	return path.Join(source.rootKey(), "updated")
 }
 
-func setName(source *Source, kv *consul.KV) error {
+func (install *Install) setName(source *Source) error {
 	key := path.Join(source.rootKey(), "name")
-	_, err := kv.Put(&consul.KVPair{Key: key, Value: []byte(source.Name)}, nil)
+	_, err := install.kv.Put(&consul.KVPair{Key: key, Value: []byte(source.Name)}, nil)
 	return err
 }
 
-func setTimestamp(source *Source, kv *consul.KV) error {
+func (install *Install) setTimestamp(source *Source) error {
 	ts := time.Now().UTC().Format(time.UnixDate)
-	_, err := kv.Put(&consul.KVPair{Key: sourceTimestampKey(source), Value: []byte(ts)}, nil)
+	_, err := install.kv.Put(&consul.KVPair{Key: sourceTimestampKey(source), Value: []byte(ts)}, nil)
 	return err
 }
 
-func addSourceArtifact(kv *consul.KV, key string, data []byte) {
+func (install *Install) addSourceArtifact(key string, data []byte) {
 	kp := &consul.KVPair{Key: key, Value: data}
-	_, err := kv.Put(kp, nil)
+	_, err := install.kv.Put(kp, nil)
 	if err == nil {
 		log.Debugf("Wrote %v", key)
 	} else {

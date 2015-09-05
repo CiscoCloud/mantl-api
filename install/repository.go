@@ -1,9 +1,8 @@
-package repository
+package install
 
 import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	consul "github.com/hashicorp/consul/api"
 	"path"
 	"sort"
 	"strconv"
@@ -59,15 +58,15 @@ func (r Repository) IsBase() bool {
 	return r.Index == 0
 }
 
-func Repositories(client *consul.Client) (RepositoryCollection, error) {
-	idxs, err := indexes(client)
+func (install *Install) getRepositories() (RepositoryCollection, error) {
+	idxs, err := install.repositoryIndexes()
 	if err != nil {
 		return nil, err
 	}
 
 	var repositories RepositoryCollection
 	for _, idx := range idxs {
-		name, err := name(client, idx)
+		name, err := install.repositoryName(idx)
 		if err != nil {
 			log.Warnf("Could not find name for repository %d: %v", idx, err)
 			continue
@@ -82,11 +81,10 @@ func Repositories(client *consul.Client) (RepositoryCollection, error) {
 	return repositories, nil
 }
 
-func BaseRepository(client *consul.Client) (*Repository, error) {
-	kv := client.KV()
+func (install *Install) getBaseRepository() (*Repository, error) {
 	key := path.Join(RepositoryRoot, "0", "name")
 
-	kp, _, err := kv.Get(key, nil)
+	kp, _, err := install.kv.Get(key, nil)
 	if err != nil || kp == nil {
 		log.Errorf("Could not retrieve base repository from %s: %v", key, err)
 		return nil, err
@@ -95,18 +93,17 @@ func BaseRepository(client *consul.Client) (*Repository, error) {
 	return &Repository{Name: string(kp.Value), Index: 0}, nil
 }
 
-func Layers(client *consul.Client) (RepositoryCollection, error) {
-	repos, err := Repositories(client)
+func (install *Install) getLayerRepositories() (RepositoryCollection, error) {
+	repos, err := install.Repositories()
 	if err != nil {
 		return nil, err
 	}
 	return repos.Layers(), nil
 }
 
-func name(client *consul.Client, idx int) (string, error) {
-	kv := client.KV()
+func (install *Install) repositoryName(idx int) (string, error) {
 	key := path.Join(RepositoryRoot, fmt.Sprintf("%d", idx), "name")
-	kp, _, err := kv.Get(key, nil)
+	kp, _, err := install.kv.Get(key, nil)
 	if err != nil || kp == nil {
 		log.Errorf("Could not retrieve repository name from %s: %v", key, err)
 		return "", err
@@ -115,11 +112,9 @@ func name(client *consul.Client, idx int) (string, error) {
 	return string(kp.Value), nil
 }
 
-func indexes(client *consul.Client) ([]int, error) {
-	kv := client.KV()
-
+func (install *Install) repositoryIndexes() ([]int, error) {
 	// retrieves repository indexes like mantl-install/repository/0/
-	indexes, _, err := kv.Keys(RepositoryRoot+"/", "/", nil)
+	indexes, _, err := install.kv.Keys(RepositoryRoot+"/", "/", nil)
 	if err != nil {
 		return nil, err
 	}

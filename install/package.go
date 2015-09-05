@@ -1,10 +1,8 @@
-package packages
+package install
 
 import (
 	"encoding/json"
 	log "github.com/Sirupsen/logrus"
-	consul "github.com/hashicorp/consul/api"
-	"github.com/ryane/mantl-api/repository"
 	"path"
 	"sort"
 	"strings"
@@ -16,11 +14,11 @@ type PackageVersion struct {
 	Supported bool
 }
 
-type PackageVersionByMostRecent []PackageVersion
+type packageVersionByMostRecent []PackageVersion
 
-func (p PackageVersionByMostRecent) Len() int           { return len(p) }
-func (p PackageVersionByMostRecent) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
-func (p PackageVersionByMostRecent) Less(i, j int) bool { return p[j].Index < p[i].Index }
+func (p packageVersionByMostRecent) Len() int           { return len(p) }
+func (p packageVersionByMostRecent) Swap(i, j int)      { p[i], p[j] = p[j], p[i] }
+func (p packageVersionByMostRecent) Less(i, j int) bool { return p[j].Index < p[i].Index }
 
 type Package struct {
 	Name           string
@@ -107,8 +105,8 @@ func (p packageIndexEntry) ToPackage() *Package {
 	return pkg
 }
 
-func Packages(client *consul.Client) ([]*Package, error) {
-	packageIndexEntries, err := packageIndexEntries(client)
+func (install *Install) getPackages() (PackageCollection, error) {
+	packageIndexEntries, err := install.packageIndexEntries()
 	if err != nil {
 		log.Errorf("Could not retrieve base package index: %v", err)
 		return nil, err
@@ -117,17 +115,16 @@ func Packages(client *consul.Client) ([]*Package, error) {
 	packages := make(PackageCollection, len(packageIndexEntries))
 	for i, entry := range packageIndexEntries {
 		pkg := entry.ToPackage()
-		setSupportedVersions(client, pkg)
-		setCurrentVersion(pkg)
+		install.setSupportedVersions(pkg)
+		install.setCurrentVersion(pkg)
 		packages[i] = pkg
 	}
 
 	return packages, nil
 }
 
-func setSupportedVersions(client *consul.Client, pkg *Package) {
-	kv := client.KV()
-	layers, err := repository.Layers(client)
+func (install *Install) setSupportedVersions(pkg *Package) {
+	layers, err := install.LayerRepositories()
 	if err != nil {
 		log.Errorf("Could not read layer repositories: %v", err)
 		return
@@ -141,7 +138,7 @@ func setSupportedVersions(client *consul.Client, pkg *Package) {
 				"mantl.json",
 			)
 
-			kp, _, err := kv.Get(versionKey, nil)
+			kp, _, err := install.kv.Get(versionKey, nil)
 			if err != nil {
 				log.Warnf("Could not read %s: %v", versionKey, err)
 			}
@@ -154,7 +151,7 @@ func setSupportedVersions(client *consul.Client, pkg *Package) {
 	pkg.Supported = pkg.HasSupportedVersion()
 }
 
-func setCurrentVersion(pkg *Package) {
+func (install *Install) setCurrentVersion(pkg *Package) {
 	if !pkg.Supported || !pkg.HasSupportedVersion() {
 		// we don't support any version so defer to the base package
 		return
@@ -169,7 +166,7 @@ func setCurrentVersion(pkg *Package) {
 
 	// CurrentVersion is not supported so we want to set it to the highest supported version
 	versions := pkg.SupportedVersions()
-	sort.Sort(PackageVersionByMostRecent(versions))
+	sort.Sort(packageVersionByMostRecent(versions))
 	for _, pv := range versions {
 		if pv.Supported {
 			pkg.CurrentVersion = pv.Version
@@ -178,8 +175,8 @@ func setCurrentVersion(pkg *Package) {
 	}
 }
 
-func packageIndexEntries(client *consul.Client) ([]packageIndexEntry, error) {
-	baseRepo, err := repository.BaseRepository(client)
+func (install *Install) packageIndexEntries() ([]packageIndexEntry, error) {
+	baseRepo, err := install.BaseRepository()
 	if err != nil || baseRepo == nil {
 		log.Errorf("Could not retrieve base repository: %v", err)
 		return nil, err
@@ -187,8 +184,7 @@ func packageIndexEntries(client *consul.Client) ([]packageIndexEntry, error) {
 
 	baseIndex := baseRepo.PackageIndexKey()
 
-	kv := client.KV()
-	kp, _, err := kv.Get(baseIndex, nil)
+	kp, _, err := install.kv.Get(baseIndex, nil)
 	if err != nil || kp == nil {
 		log.Errorf("Could not read %s: %v", baseIndex, err)
 		return nil, err

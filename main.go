@@ -3,9 +3,7 @@ package main
 import (
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
-	"github.com/ryane/mantl-api/packages"
-	"github.com/ryane/mantl-api/repository"
-	"github.com/ryane/mantl-api/source"
+	"github.com/ryane/mantl-api/install"
 )
 
 func main() {
@@ -23,52 +21,25 @@ func main() {
 		log.Fatalf("Could not connect to consul: %v", err)
 	}
 
-	sources := []*source.Source{
-		&source.Source{
+	inst := install.NewInstall(client)
+
+	sources := []*install.Source{
+		&install.Source{
 			Name:       "mantl",
 			Path:       "/Users/ryan/Downloads/universe",
-			SourceType: source.FileSystem,
+			SourceType: install.FileSystem,
 			Index:      1,
 		},
-		&source.Source{
+		&install.Source{
 			Name:       "mesosphere",
 			Path:       "https://github.com/mesosphere/universe.git",
-			SourceType: source.Git,
+			SourceType: install.Git,
 			Index:      0,
 		},
 	}
-
-	// sync repositories if they don't exist
-	for _, source := range sources {
-		ts, err := source.LastUpdated(client)
-		log.Debugf("%s source last updated at %v", source.Name, ts)
-		if err != nil || ts.IsZero() {
-			log.Debugf("Syncing %v source", source.Name)
-			err := source.Sync(client)
-			if err != nil {
-				log.Errorf("Could not sync %s source from %s: %v", source.Name, source.Path, err)
-			}
-		}
-	}
+	inst.SyncSources(sources)
 
 	// start listener
-
-	// list packages
-	packages, err := packages.Packages(client)
-	if err != nil {
-		log.Errorf("Could not retrieve packages: %v", err)
-	}
-
-	for _, p := range packages {
-		log.Debugf("%s (%s)", p.Name, p.CurrentVersion)
-		log.Debugf("%+v", p)
-		log.Debug("")
-	}
-
-	repos, err := repository.Repositories(client)
-	for _, r := range repos {
-		log.Debugf("%v (%d)", r.Name, r.Index)
-	}
 }
 
 func testConsul(client *consul.Client) error {
