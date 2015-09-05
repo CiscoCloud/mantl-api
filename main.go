@@ -3,6 +3,7 @@ package main
 import (
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/ryane/mantl-api/api"
 	"github.com/ryane/mantl-api/install"
 )
 
@@ -23,6 +24,7 @@ func main() {
 
 	inst := install.NewInstall(client)
 
+	// sync sources to consul
 	sources := []*install.Source{
 		&install.Source{
 			Name:       "mantl",
@@ -40,6 +42,8 @@ func main() {
 	inst.SyncSources(sources)
 
 	// start listener
+	// TODO: configurable api (port, address, etc.)
+	api.NewApi(":4001", inst).Start()
 }
 
 func testConsul(client *consul.Client) error {

@@ -9,9 +9,9 @@ import (
 )
 
 type PackageVersion struct {
-	Version   string
-	Index     string
-	Supported bool
+	Version   string `json:"version"`
+	Index     string `json:"index"`
+	Supported bool   `json:"supported"`
 }
 
 type packageVersionByMostRecent []PackageVersion
@@ -21,13 +21,13 @@ func (p packageVersionByMostRecent) Swap(i, j int)      { p[i], p[j] = p[j], p[i
 func (p packageVersionByMostRecent) Less(i, j int) bool { return p[j].Index < p[i].Index }
 
 type Package struct {
-	Name           string
-	Description    string
-	Framework      bool
-	CurrentVersion string
-	Supported      bool
-	Tags           []string
-	Versions       map[string]PackageVersion
+	Name           string                    `json:"name"`
+	Description    string                    `json:"description"`
+	Framework      bool                      `json:"framework"`
+	CurrentVersion string                    `json:"currentVersion"`
+	Supported      bool                      `json:"supported"`
+	Tags           []string                  `json:"tags"`
+	Versions       map[string]PackageVersion `json:"versions"`
 }
 
 type PackageCollection []*Package
