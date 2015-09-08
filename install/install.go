@@ -18,6 +18,10 @@ func (install *Install) Packages() (PackageCollection, error) {
 	return install.getPackages()
 }
 
+func (install *Install) Package(name string) (*Package, error) {
+	return install.getPackageByName(name)
+}
+
 func (install *Install) Repositories() (RepositoryCollection, error) {
 	return install.getRepositories()
 }

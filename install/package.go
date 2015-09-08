@@ -123,6 +123,23 @@ func (install *Install) getPackages() (PackageCollection, error) {
 	return packages, nil
 }
 
+func (install *Install) getPackageByName(name string) (*Package, error) {
+	packages, err := install.getPackages()
+
+	if err != nil {
+		return nil, err
+	}
+
+	n := strings.TrimSpace(name)
+	for _, p := range packages {
+		if strings.EqualFold(n, p.Name) {
+			return p, nil
+		}
+	}
+
+	return nil, nil
+}
+
 func (install *Install) setSupportedVersions(pkg *Package) {
 	layers, err := install.LayerRepositories()
 	if err != nil {
