@@ -5,9 +5,9 @@ import (
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
-	"github.com/libgit2/git2go"
 	"io/ioutil"
 	"os"
+	"os/exec"
 	"path"
 	"path/filepath"
 	"time"
@@ -97,7 +97,7 @@ func (install *Install) syncGitSource(source *Source) error {
 
 	dest := path.Join(temp, source.Name)
 	log.Debugf("Cloning %s into %s", source.Path, dest)
-	_, err = git.Clone(source.Path, dest, &git.CloneOptions{})
+	err = exec.Command("git", "clone", source.Path, dest).Run()
 	if err != nil {
 		return err
 	}
