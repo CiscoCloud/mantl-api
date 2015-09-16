@@ -9,7 +9,7 @@ COPY . /go/src/github.com/ryane/mantl-api
 RUN apk add go git mercurial \
 	&& cd /go/src/github.com/ryane/mantl-api \
 	&& export GOPATH=/go \
-	&& go get -t \
+	&& go get -t -u \
   && go test ./... \
 	&& go build -o /bin/mantl-api \
 	&& rm -rf /go \
