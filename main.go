@@ -55,12 +55,11 @@ func start() {
 		viper.GetString("mesos-password"),
 		viper.GetBool("mesos-no-verify-ssl"),
 		viper.GetString("mesos-credentials"),
+		viper.GetString("mesos-principal"),
 	)
 	if err != nil {
 		log.Fatalf("Could not get mesos client: %v", err)
 	}
-
-	mesosClient.ParseCredentials()
 
 	inst := install.NewInstall(client, marathonClient, mesosClient)
 
@@ -68,8 +67,8 @@ func start() {
 	sources := []*install.Source{
 		&install.Source{
 			Name:       "mantl",
-			Path:       "/Users/ryan/Downloads/universe",
-			SourceType: install.FileSystem,
+			Path:       "https://github.com/ryane/mantl-universe.git",
+			SourceType: install.Git,
 			Index:      1,
 		},
 		&install.Source{
@@ -109,6 +108,7 @@ func main() {
 	rootCmd.PersistentFlags().String("mesos-password", "", "Mesos Api password")
 	rootCmd.PersistentFlags().Bool("mesos-no-verify-ssl", false, "Mesos SSL verification")
 	rootCmd.PersistentFlags().String("mesos-credentials", "/etc/mesos/credentials", "Path to Mesos credentials file")
+	rootCmd.PersistentFlags().String("mesos-principal", "mantl-install", "The name of the principal to look up the corresponding secret in the mesos-credentials file")
 	rootCmd.PersistentFlags().String("listen", ":4001", "mantl-api listen address")
 
 	for _, flags := range []*pflag.FlagSet{rootCmd.PersistentFlags()} {

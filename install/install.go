@@ -1,6 +1,8 @@
 package install
 
 import (
+	"errors"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/ryane/mantl-api/marathon"
@@ -47,7 +49,12 @@ func (install *Install) LayerRepositories() (RepositoryCollection, error) {
 }
 
 func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
-	pkgDef, err := install.GetPackageDefinition(pkgReq.Name, pkgReq.Version)
+	internalConfig := map[string]string{
+		"mantl-install-mesos-principal": install.mesos.Principal,
+		"mantl-install-mesos-secret":    install.mesos.GetCredential(install.mesos.Principal),
+	}
+
+	pkgDef, err := install.GetPackageDefinition(pkgReq.Name, pkgReq.Version, internalConfig)
 	if err != nil {
 		log.Errorf("Could not find package definition: %v", err)
 		return "", err
@@ -81,54 +88,52 @@ func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
 
 func (install *Install) UninstallPackage(pkgReq *PackageRequest) (string, error) {
 	// find marathon app by id
-	// matching := install.findInstalledApp(pkgReq)
+	matching := install.findInstalledApp(pkgReq)
 
-	// if matching == nil {
-	// 	log.Warnf("Could not find matching package for %s %s", pkgReq.Name, pkgReq.Version)
-	// 	return "", nil
-	// }
+	if matching == nil {
+		log.Warnf("Could not find matching package for %s %s", pkgReq.Name, pkgReq.Version)
+		return "", nil
+	}
 
-	// log.Debugf("Found matching app at %s", matching.ID)
+	log.Debugf("Found matching app at %s", matching.ID)
 
-	// // get framework name
-	// fwName := matching.Labels[packageFrameworkNameKey]
-	// if fwName == "" {
-	// 	fwName = matching.Labels[dcosPackageFrameworkNameKey]
-	// }
+	// get framework name
+	fwName := matching.Labels[packageFrameworkNameKey]
+	if fwName == "" {
+		fwName = matching.Labels[dcosPackageFrameworkNameKey]
+	}
 
-	// // remove app from marathon
-	// _, err := install.marathon.DestroyApp(matching.ID)
+	// remove app from marathon
+	_, err := install.marathon.DestroyApp(matching.ID)
 
-	// if err != nil {
-	// 	log.Errorf("Could not destroy app in Marathon: %v", err)
-	// 	return "", err
-	// }
+	if err != nil {
+		log.Errorf("Could not destroy app in Marathon: %v", err)
+		return "", err
+	}
 
-	// // find mesos framework
-	// state, _ := install.mesos.State()
-	// matchingFrameworks := make(map[string]*mesos.Framework)
-	// for _, fw := range state.AllFrameworks() {
-	// 	if fw.Name == fwName {
-	// 		matchingFrameworks[fw.ID] = fw
-	// 	}
-	// }
+	// find mesos framework
+	state, _ := install.mesos.State()
+	matchingFrameworks := make(map[string]*mesos.Framework)
+	for _, fw := range state.AllFrameworks() {
+		if fw.Name == fwName {
+			matchingFrameworks[fw.ID] = fw
+		}
+	}
 
-	// log.Debug(matchingFrameworks)
+	log.Debug(matchingFrameworks)
 
-	// if fwCount := len(matchingFrameworks); fwCount > 1 {
-	// 	return "", errors.New(fmt.Sprintf("There are %d %s frameworks.", fwCount, fwName))
-	// }
+	if fwCount := len(matchingFrameworks); fwCount > 1 {
+		return "", errors.New(fmt.Sprintf("There are %d %s frameworks.", fwCount, fwName))
+	}
 
-	// var frameworkId string
-	// for fwid, _ := range matchingFrameworks {
-	// 	frameworkId = fwid
-	// 	break
-	// }
+	var frameworkId string
+	for fwid, _ := range matchingFrameworks {
+		frameworkId = fwid
+		break
+	}
 
-	// // shutdown mesos framework
-	// install.mesos.Shutdown(frameworkId)
-	rt, _ := install.mesos.Shutdown("20150915-193736-67108874-15050-16336-0002")
-	log.Debug("teardown response: %s", rt)
+	// shutdown mesos framework
+	install.mesos.Shutdown(frameworkId)
 
 	return "", nil
 }

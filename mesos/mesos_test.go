@@ -27,7 +27,7 @@ func TestParseCredentials(t *testing.T) {
 	temp.Close()
 	t.Logf(temp.Name())
 
-	creds, _ := m.ParseCredentials()
+	creds, _ := parseCredentials(m.Credentials)
 	assert.Equal(t, "marathons$cr$T!", creds["marathon"])
 	assert.Equal(t, "chronos+123-secret", creds["chronos"])
 	assert.Equal(t, "follow3rS3cr$t", creds["follower"])

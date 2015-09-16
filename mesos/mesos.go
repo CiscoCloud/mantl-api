@@ -17,12 +17,14 @@ import (
 )
 
 type Mesos struct {
-	Location    string
-	Protocol    string
-	Username    string
-	Password    string
-	NoVerifySsl bool
-	Credentials string
+	Location         string
+	Protocol         string
+	Username         string
+	Password         string
+	NoVerifySsl      bool
+	Credentials      string
+	Principal        string
+	credentialsCache map[string]string
 }
 
 func DefaultConfig() *Mesos {
@@ -31,6 +33,7 @@ func DefaultConfig() *Mesos {
 		Protocol:    "http",
 		NoVerifySsl: false,
 		Credentials: "/etc/mesos/credentials",
+		Principal:   "mantl-install",
 	}
 }
 
@@ -50,8 +53,13 @@ func (s *StateResponse) AllFrameworks() []*Framework {
 	return append(s.Frameworks, append(s.CompletedFrameworks, s.UnregisteredFrameworks...)...)
 }
 
-func NewMesos(location, protocol string, username string, password string, verifySsl bool, credentialsPath string) (*Mesos, error) {
-	return &Mesos{location, protocol, username, password, verifySsl, credentialsPath}, nil
+func NewMesos(location, protocol string, username string, password string, verifySsl bool, credentialsPath string, principal string) (*Mesos, error) {
+	creds, err := parseCredentials(credentialsPath)
+	if err != nil {
+		log.Warnf("Could not read credentials file %s: %v", credentialsPath, err)
+	}
+
+	return &Mesos{location, protocol, username, password, verifySsl, credentialsPath, principal, creds}, nil
 }
 
 func (m Mesos) State() (*StateResponse, error) {
@@ -192,13 +200,13 @@ func (m Mesos) logHTTP(resp *http.Response, method string, url string, err error
 	}
 }
 func (m Mesos) GetCredential(principal string) string {
-	return ""
+	return m.credentialsCache[principal]
 }
 
-func (m Mesos) ParseCredentials() (map[string]string, error) {
+func parseCredentials(filePath string) (map[string]string, error) {
 	credentials := make(map[string]string)
 
-	file, err := os.Open(m.Credentials)
+	file, err := os.Open(filePath)
 	if err != nil {
 		log.Errorf("Could not open credentials file: %v", err)
 		return nil, err

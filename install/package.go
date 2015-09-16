@@ -165,16 +165,17 @@ func (g packageConfigGroup) defaultConfig() map[string]interface{} {
 }
 
 type packageDefinition struct {
-	commandJson   []byte
-	configJson    []byte
-	marathonJson  []byte
-	packageJson   []byte
-	optionsJson   []byte
-	name          string
-	version       string
-	release       string
-	framework     bool
-	frameworkName string
+	commandJson    []byte
+	configJson     []byte
+	marathonJson   []byte
+	packageJson    []byte
+	optionsJson    []byte
+	internalConfig map[string]string
+	name           string
+	version        string
+	release        string
+	framework      bool
+	frameworkName  string
 }
 
 func (d packageDefinition) IsValid() bool {
@@ -198,12 +199,23 @@ func (d packageDefinition) ConfigSchema() (packageConfigGroup, error) {
 func (d packageDefinition) Options() (map[string]interface{}, error) {
 	var options map[string]interface{}
 	if len(d.optionsJson) > 0 {
-		err := json.Unmarshal(d.optionsJson, &options)
+		// Render options
+		optionsTemplate := string(d.optionsJson)
+		tmpl, err := mustache.ParseString(optionsTemplate)
+		if err != nil {
+			log.Errorf("Could not parse options template: %v", err)
+			return nil, err
+		}
+
+		renderedOptions := tmpl.Render(d.internalConfig)
+
+		err = json.Unmarshal([]byte(renderedOptions), &options)
 		if err != nil {
 			log.Errorf("Could not unmarshal options json: %v", err)
 			return nil, err
 		}
 	}
+
 	return options, nil
 }
 
@@ -235,6 +247,7 @@ func (d packageDefinition) MarathonAppJson() (string, error) {
 		return "", err
 	}
 
+	// Render marathonTemplate with config
 	tmpl, err := mustache.ParseString(marathonTemplate)
 	if err != nil {
 		log.Errorf("Could not parse marathon template: %v", err)
@@ -281,7 +294,7 @@ func (install *Install) getPackageByName(name string) (*Package, error) {
 	return nil, nil
 }
 
-func (install *Install) GetPackageDefinition(name string, version string) (*packageDefinition, error) {
+func (install *Install) GetPackageDefinition(name string, version string, internalConfig map[string]string) (*packageDefinition, error) {
 	pkg, err := install.getPackageByName(name)
 	if err != nil {
 		return nil, err
@@ -302,10 +315,11 @@ func (install *Install) GetPackageDefinition(name string, version string) (*pack
 	}
 
 	pkgDef := &packageDefinition{
-		name:      pkg.Name,
-		version:   pkgVersion.Version,
-		release:   pkgVersion.Index,
-		framework: pkg.Framework,
+		name:           pkg.Name,
+		version:        pkgVersion.Version,
+		release:        pkgVersion.Index,
+		framework:      pkg.Framework,
+		internalConfig: internalConfig,
 	}
 
 	for _, repo := range repositories {
