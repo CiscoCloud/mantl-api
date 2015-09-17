@@ -5,7 +5,7 @@
 `GET /1/packages`: returns a JSON representation of packages available to install.
 
 ```shell
-curl http://resching-gce-control-01.jossware.org:4001/1/packages | jq .
+curl http://gce-control-01:4001/1/packages | jq .
 ```
 
 ```json
@@ -63,7 +63,7 @@ curl http://resching-gce-control-01.jossware.org:4001/1/packages | jq .
 `GET /1/packages/<package>`: returns a JSON representation of a package.
 
 ```shell
-curl http://resching-gce-control-01.jossware.org:4001/1/packages/cassandra | jq .
+curl http://gce-control-01:4001/1/packages/cassandra | jq .
 ```
 
 ```json
@@ -99,7 +99,7 @@ curl http://resching-gce-control-01.jossware.org:4001/1/packages/cassandra | jq 
 `POST /1/packages`: post a JSON representation of a package to install.
 
 ```shell
-curl -X POST -d "{\"name\": \"cassandra\"}" http://resching-gce-control-01.jossware.org:4001/1/packages | jq .
+curl -X POST -d "{\"name\": \"cassandra\"}" http://gce-control-01:4001/1/packages | jq .
 ```
 
 ```json
@@ -206,5 +206,5 @@ curl -X POST -d "{\"name\": \"cassandra\"}" http://resching-gce-control-01.jossw
 `DELETE /1/packages/<package>`: post a JSON representation of package specific uninstall options.
 
 ```shell
-curl -X DELETE -d "{\"name\": \"cassandra\"}" http://resching-gce-control-01.jossware.org:4001/1/packages/cassandra
+curl -X DELETE -d "{\"name\": \"cassandra\"}" http://gce-control-01:4001/1/packages/cassandra
 ```
