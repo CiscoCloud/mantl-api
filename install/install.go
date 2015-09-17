@@ -1,12 +1,11 @@
 package install
 
 import (
-	"errors"
-	"fmt"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/ryane/mantl-api/marathon"
 	"github.com/ryane/mantl-api/mesos"
+	"github.com/ryane/mantl-api/zookeeper"
 	"strconv"
 )
 
@@ -18,14 +17,15 @@ const packageFrameworkNameKey = "MANTL_PACKAGE_FRAMEWORK_NAME"
 const dcosPackageFrameworkNameKey = "DCOS_PACKAGE_FRAMEWORK_NAME"
 
 type Install struct {
-	consul   *consul.Client
-	kv       *consul.KV
-	marathon *marathon.Marathon
-	mesos    *mesos.Mesos
+	consul    *consul.Client
+	kv        *consul.KV
+	marathon  *marathon.Marathon
+	mesos     *mesos.Mesos
+	zookeeper *zookeeper.Zookeeper
 }
 
-func NewInstall(consulClient *consul.Client, marathon *marathon.Marathon, mesos *mesos.Mesos) *Install {
-	return &Install{consulClient, consulClient.KV(), marathon, mesos}
+func NewInstall(consulClient *consul.Client, marathon *marathon.Marathon, mesos *mesos.Mesos, zookeeper *zookeeper.Zookeeper) *Install {
+	return &Install{consulClient, consulClient.KV(), marathon, mesos, zookeeper}
 }
 
 func (install *Install) Packages() (PackageCollection, error) {
@@ -111,29 +111,18 @@ func (install *Install) UninstallPackage(pkgReq *PackageRequest) (string, error)
 		return "", err
 	}
 
-	// find mesos framework
-	state, _ := install.mesos.State()
-	matchingFrameworks := make(map[string]*mesos.Framework)
-	for _, fw := range state.AllFrameworks() {
-		if fw.Name == fwName {
-			matchingFrameworks[fw.ID] = fw
-		}
-	}
-
-	log.Debug(matchingFrameworks)
-
-	if fwCount := len(matchingFrameworks); fwCount > 1 {
-		return "", errors.New(fmt.Sprintf("There are %d %s frameworks.", fwCount, fwName))
-	}
-
-	var frameworkId string
-	for fwid, _ := range matchingFrameworks {
-		frameworkId = fwid
-		break
-	}
-
 	// shutdown mesos framework
-	install.mesos.Shutdown(frameworkId)
+	_, err = install.mesos.ShutdownFrameworkByName(fwName)
+	if err != nil {
+		log.Errorf("Could not shutdown framework from Mesos: %v", err)
+		return "", err
+	}
+
+	err = install.postUninstall(matching)
+	if err != nil {
+		log.Errorf("Failed to run post-uninstall for %s", pkgReq.Name)
+		return "", nil
+	}
 
 	return "", nil
 }
@@ -152,6 +141,33 @@ func (install *Install) SyncSources(sources []*Source) error {
 			}
 		}
 	}
+	return nil
+}
+
+func (install *Install) postUninstall(app *marathon.App) error {
+	name := app.Labels[packageNameKey]
+	version := app.Labels[packageVersionKey]
+	pkgDef, err := install.GetPackageDefinition(name, version, nil)
+	if err != nil {
+		log.Errorf("Could not perform post-install for %s. Could not find package definition: %v", name, err)
+		return err
+	}
+
+	pkgU, err := pkgDef.PostUninstall()
+	if err != nil {
+		log.Errorf("Could not get post-uninstall commands: %v", err)
+		return err
+	}
+
+	// run zookeeper delete commands
+	if pkgU != nil && pkgU.Zookeeper != nil && len(pkgU.Zookeeper.Delete) > 0 {
+		for _, deleteNode := range pkgU.Zookeeper.Delete {
+			if deleteNode.Always {
+				install.zookeeper.Delete(deleteNode.Path)
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -185,6 +201,9 @@ func (install *Install) findInstalledApp(pkgReq *PackageRequest) *marathon.App {
 }
 
 func addMantlLabels(app *marathon.App, pkgDef *packageDefinition) {
+	if app.Labels == nil {
+		app.Labels = make(map[string]string)
+	}
 	app.Labels[packageNameKey] = pkgDef.name
 	app.Labels[packageVersionKey] = pkgDef.version
 	app.Labels[packageIndexKey] = pkgDef.release

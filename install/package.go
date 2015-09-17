@@ -170,6 +170,7 @@ type packageDefinition struct {
 	marathonJson   []byte
 	packageJson    []byte
 	optionsJson    []byte
+	uninstallJson  []byte
 	internalConfig map[string]string
 	name           string
 	version        string
@@ -257,6 +258,49 @@ func (d packageDefinition) MarathonAppJson() (string, error) {
 	json := tmpl.Render(config)
 
 	return json, nil
+}
+
+type packageUninstall struct {
+	Zookeeper *zookeeperCommands `json:"zookeeper"`
+}
+
+type zookeeperCommands struct {
+	Delete []*zookeeperNode `json:"delete"`
+}
+
+type zookeeperNode struct {
+	Path   string `json:"path"`
+	Always bool   `json:"always"`
+}
+
+func (d packageDefinition) PostUninstall() (*packageUninstall, error) {
+	var uninstall *packageUninstall
+	var err error
+
+	if len(d.uninstallJson) == 0 {
+		return uninstall, nil
+	}
+
+	uninstallTemplate := string(d.uninstallJson)
+	config, err := d.MergedConfig()
+	if err != nil {
+		log.Errorf("Unable to retrieve package definition configuration: %v", err)
+		return uninstall, err
+	}
+
+	// Render uninstallTemplate with config
+	tmpl, err := mustache.ParseString(uninstallTemplate)
+	if err != nil {
+		log.Errorf("Could not parse uninstall template: %v", err)
+		return nil, err
+	}
+
+	jsonBlob := tmpl.Render(config)
+
+	uninstall = &packageUninstall{}
+	err = json.Unmarshal([]byte(jsonBlob), &uninstall)
+
+	return uninstall, err
 }
 
 func (install *Install) getPackages() (PackageCollection, error) {
@@ -347,6 +391,10 @@ func (install *Install) GetPackageDefinition(name string, version string, intern
 		data = install.getPackageDefinitionFile("mantl.json", pkgKey)
 		if len(data) > 0 {
 			pkgDef.optionsJson = data
+		}
+		data = install.getPackageDefinitionFile("uninstall.json", pkgKey)
+		if len(data) > 0 {
+			pkgDef.uninstallJson = data
 		}
 	}
 

@@ -7,10 +7,12 @@ import (
 	"github.com/ryane/mantl-api/install"
 	"github.com/ryane/mantl-api/marathon"
 	"github.com/ryane/mantl-api/mesos"
+	"github.com/ryane/mantl-api/zookeeper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
 	"net/url"
+	"strings"
 )
 
 const Name = "mantl-api"
@@ -61,7 +63,10 @@ func start() {
 		log.Fatalf("Could not get mesos client: %v", err)
 	}
 
-	inst := install.NewInstall(client, marathonClient, mesosClient)
+	zkServers := strings.Split(viper.GetString("zookeeper"), ",")
+	zk := zookeeper.NewZookeeper(zkServers)
+
+	inst := install.NewInstall(client, marathonClient, mesosClient, zk)
 
 	// sync sources to consul
 	sources := []*install.Source{
@@ -110,6 +115,7 @@ func main() {
 	rootCmd.PersistentFlags().String("mesos-credentials", "/etc/mesos/credentials", "Path to Mesos credentials file")
 	rootCmd.PersistentFlags().String("mesos-principal", "mantl-install", "The name of the principal to look up the corresponding secret in the mesos-credentials file")
 	rootCmd.PersistentFlags().String("listen", ":4001", "mantl-api listen address")
+	rootCmd.PersistentFlags().String("zookeeper", "localhost:2181", "Comma-delimited list of zookeeper servers")
 
 	for _, flags := range []*pflag.FlagSet{rootCmd.PersistentFlags()} {
 		err := viper.BindPFlags(flags)

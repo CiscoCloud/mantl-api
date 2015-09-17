@@ -5,6 +5,7 @@ import (
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
+	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"io"
@@ -85,6 +86,30 @@ func (m Mesos) Shutdown(frameworkId string) (string, error) {
 		return "", err
 	}
 	return m.responseText(response)
+}
+
+func (m Mesos) ShutdownFrameworkByName(name string) (string, error) {
+	// find mesos framework
+	state, _ := m.State()
+	matchingFrameworks := make(map[string]*Framework)
+	for _, fw := range state.Frameworks {
+		if fw.Name == name && fw.Active {
+			matchingFrameworks[fw.ID] = fw
+		}
+	}
+
+	if fwCount := len(matchingFrameworks); fwCount > 1 {
+		return "", errors.New(fmt.Sprintf("There are %d %s frameworks.", fwCount, name))
+	}
+
+	var frameworkId string
+	for fwid, _ := range matchingFrameworks {
+		frameworkId = fwid
+		break
+	}
+
+	// shutdown mesos framework
+	return m.Shutdown(frameworkId)
 }
 
 func (m Mesos) get(url string) (*http.Response, error) {
