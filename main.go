@@ -124,6 +124,10 @@ func main() {
 		}
 	}
 
+	viper.SetEnvPrefix("mantl_api")
+	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+	viper.AutomaticEnv()
+
 	rootCmd.Execute()
 }
 
