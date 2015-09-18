@@ -18,14 +18,11 @@ import (
 )
 
 type Mesos struct {
-	Location         string
-	Protocol         string
-	Username         string
-	Password         string
-	NoVerifySsl      bool
-	Credentials      string
-	Principal        string
-	credentialsCache map[string]string
+	Location    string
+	Protocol    string
+	Principal   string
+	Secret      string
+	NoVerifySsl bool
 }
 
 func DefaultConfig() *Mesos {
@@ -33,7 +30,6 @@ func DefaultConfig() *Mesos {
 		Location:    "localhost:5050",
 		Protocol:    "http",
 		NoVerifySsl: false,
-		Credentials: "/etc/mesos/credentials",
 		Principal:   "mantl-install",
 	}
 }
@@ -54,13 +50,8 @@ func (s *StateResponse) AllFrameworks() []*Framework {
 	return append(s.Frameworks, append(s.CompletedFrameworks, s.UnregisteredFrameworks...)...)
 }
 
-func NewMesos(location, protocol string, username string, password string, verifySsl bool, credentialsPath string, principal string) (*Mesos, error) {
-	creds, err := parseCredentials(credentialsPath)
-	if err != nil {
-		log.Warnf("Could not read credentials file %s: %v", credentialsPath, err)
-	}
-
-	return &Mesos{location, protocol, username, password, verifySsl, credentialsPath, principal, creds}, nil
+func NewMesos(location, protocol string, principal string, secret string, verifySsl bool) (*Mesos, error) {
+	return &Mesos{location, protocol, principal, secret, verifySsl}, nil
 }
 
 func (m Mesos) State() (*StateResponse, error) {
@@ -138,8 +129,8 @@ func (m Mesos) doRequest(method string, path string, data []byte) (*http.Respons
 	request.Header.Add("Content-Type", "application/json")
 	request.Header.Add("Accept", "application/json")
 
-	if m.Username != "" && m.Password != "" {
-		request.SetBasicAuth(m.Username, m.Password)
+	if m.Principal != "" && m.Secret != "" {
+		request.SetBasicAuth(m.Principal, m.Secret)
 	}
 
 	if err != nil {
@@ -223,9 +214,6 @@ func (m Mesos) logHTTP(resp *http.Response, method string, url string, err error
 	} else {
 		log.WithFields(fields).Debugf("%s %s", method, url)
 	}
-}
-func (m Mesos) GetCredential(principal string) string {
-	return m.credentialsCache[principal]
 }
 
 func parseCredentials(filePath string) (map[string]string, error) {

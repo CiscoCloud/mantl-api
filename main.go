@@ -53,11 +53,9 @@ func start() {
 	mesosClient, err := mesos.NewMesos(
 		address,
 		scheme,
-		viper.GetString("mesos-user"),
-		viper.GetString("mesos-password"),
-		viper.GetBool("mesos-no-verify-ssl"),
-		viper.GetString("mesos-credentials"),
 		viper.GetString("mesos-principal"),
+		viper.GetString("mesos-secret"),
+		viper.GetBool("mesos-no-verify-ssl"),
 	)
 	if err != nil {
 		log.Fatalf("Could not get mesos client: %v", err)
@@ -109,11 +107,9 @@ func main() {
 	rootCmd.PersistentFlags().String("marathon-password", "", "Marathon Api password")
 	rootCmd.PersistentFlags().Bool("marathon-no-verify-ssl", false, "Marathon SSL verification")
 	rootCmd.PersistentFlags().String("mesos", "http://localhost:5050", "Mesos Api address")
-	rootCmd.PersistentFlags().String("mesos-user", "", "Mesos Api user")
-	rootCmd.PersistentFlags().String("mesos-password", "", "Mesos Api password")
+	rootCmd.PersistentFlags().String("mesos-principal", "", "Mesos principal for framework authentication")
+	rootCmd.PersistentFlags().String("mesos-secret", "", "Mesos secret for framework authentication")
 	rootCmd.PersistentFlags().Bool("mesos-no-verify-ssl", false, "Mesos SSL verification")
-	rootCmd.PersistentFlags().String("mesos-credentials", "/etc/mesos/credentials", "Path to Mesos credentials file")
-	rootCmd.PersistentFlags().String("mesos-principal", "mantl-install", "The name of the principal to look up the corresponding secret in the mesos-credentials file")
 	rootCmd.PersistentFlags().String("listen", ":4001", "mantl-api listen address")
 	rootCmd.PersistentFlags().String("zookeeper", "localhost:2181", "Comma-delimited list of zookeeper servers")
 
