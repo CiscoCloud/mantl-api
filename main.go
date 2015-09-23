@@ -70,7 +70,7 @@ func start() {
 	sources := []*install.Source{
 		&install.Source{
 			Name:       "mantl",
-			Path:       "https://github.com/ryane/mantl-universe.git",
+			Path:       "https://github.com/CiscoCloud/mantl-universe.git",
 			SourceType: install.Git,
 			Index:      1,
 		},
