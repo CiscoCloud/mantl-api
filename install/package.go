@@ -5,7 +5,7 @@ import (
 	"errors"
 	"fmt"
 	log "github.com/Sirupsen/logrus"
-	"github.com/hoisie/mustache"
+	"github.com/Wuvist/mustache"
 	"path"
 	"sort"
 	"strings"

@@ -1,11 +1,11 @@
 package install
 
 import (
+	"github.com/CiscoCloud/mantl-api/marathon"
+	"github.com/CiscoCloud/mantl-api/mesos"
+	"github.com/CiscoCloud/mantl-api/zookeeper"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
-	"github.com/ryane/mantl-api/marathon"
-	"github.com/ryane/mantl-api/mesos"
-	"github.com/ryane/mantl-api/zookeeper"
 	"strconv"
 )
 

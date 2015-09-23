@@ -3,9 +3,9 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/CiscoCloud/mantl-api/install"
 	log "github.com/Sirupsen/logrus"
 	"github.com/julienschmidt/httprouter"
-	"github.com/ryane/mantl-api/install"
 	"io"
 	"io/ioutil"
 	"net/http"

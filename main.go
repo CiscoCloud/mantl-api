@@ -1,13 +1,13 @@
 package main
 
 import (
+	"github.com/CiscoCloud/mantl-api/api"
+	"github.com/CiscoCloud/mantl-api/install"
+	"github.com/CiscoCloud/mantl-api/marathon"
+	"github.com/CiscoCloud/mantl-api/mesos"
+	"github.com/CiscoCloud/mantl-api/zookeeper"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
-	"github.com/ryane/mantl-api/api"
-	"github.com/ryane/mantl-api/install"
-	"github.com/ryane/mantl-api/marathon"
-	"github.com/ryane/mantl-api/mesos"
-	"github.com/ryane/mantl-api/zookeeper"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
