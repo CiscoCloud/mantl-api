@@ -155,7 +155,7 @@ func (g packageConfigGroup) defaultConfig() map[string]interface{} {
 
 	for groupName, group := range g.Properties {
 		if group.Default != nil {
-			defaults[groupName] = group.Default // TODO: probably should coerce the type based on the schema
+			defaults[groupName] = transformedConfigValue(group.Default)
 		} else if group.Type == "object" {
 			defaults[groupName] = group.defaultConfig()
 		}
@@ -504,6 +504,21 @@ func (install *Install) packageIndexEntries() ([]packageIndexEntry, error) {
 	return packageIndex.Packages, nil
 }
 
+func transformedConfigValue(val interface{}) interface{} {
+	// TODO: probably should use the config schema for this
+	if slice, ok := val.([]interface{}); ok {
+		// if the config val is an array, convert it to a json representation
+		blob, err := json.Marshal(slice)
+		if err == nil {
+			return string(blob)
+		} else {
+			log.Warnf("Could not marshal %+v config value to json: %v", val, err)
+			return val
+		}
+	} else {
+		return val
+	}
+}
 func mergeConfig(config map[string]interface{}, override map[string]interface{}) map[string]interface{} {
 	for k, v := range override {
 		_, configExists := config[k]
@@ -512,7 +527,7 @@ func mergeConfig(config map[string]interface{}, override map[string]interface{})
 		if configExists && configValIsMap && overrideValIsMap {
 			config[k] = mergeConfig(configVal, overrideVal)
 		} else {
-			config[k] = v
+			config[k] = transformedConfigValue(v)
 		}
 	}
 
