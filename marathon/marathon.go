@@ -54,13 +54,18 @@ type Container struct {
 }
 
 type HealthCheck struct {
-	Path                   string `json:"path,omitempty"`
-	PortIndex              int    `json:"portIndex,omitempty"`
-	Protocol               string `json:"protocol,omitempty"`
-	GracePeriodSeconds     int    `json:"gracePeriodSeconds,omitempty"`
-	IntervalSeconds        int    `json:"intervalSeconds,omitempty"`
-	TimeoutSeconds         int    `json:"timeoutSeconds,omitempty"`
-	MaxConsecutiveFailures int    `json:"maxConsecutiveFailures,omitempty"`
+	Path                   string             `json:"path,omitempty"`
+	PortIndex              int                `json:"portIndex,omitempty"`
+	Protocol               string             `json:"protocol,omitempty"`
+	GracePeriodSeconds     int                `json:"gracePeriodSeconds,omitempty"`
+	IntervalSeconds        int                `json:"intervalSeconds,omitempty"`
+	TimeoutSeconds         int                `json:"timeoutSeconds,omitempty"`
+	MaxConsecutiveFailures int                `json:"maxConsecutiveFailures,omitempty"`
+	Command                HealthCheckCommand `json:"command,omitempty"`
+}
+
+type HealthCheckCommand struct {
+	Value string `json:"value,omitempty"`
 }
 
 type UpgradeStrategy struct {
