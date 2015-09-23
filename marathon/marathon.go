@@ -21,75 +21,75 @@ type Marathon struct {
 }
 
 type PortMapping struct {
-	ContainerPort int    `json:"containerPort"`
-	HostPort      int    `json:"hostPort"`
-	ServicePort   int    `json:"servicePort"`
-	Protocol      string `json:"protocol"`
+	ContainerPort int    `json:"containerPort,omitempty"`
+	HostPort      int    `json:"hostPort,omitempty"`
+	ServicePort   int    `json:"servicePort,omitempty"`
+	Protocol      string `json:"protocol,omitempty"`
 }
 
 type Parameter struct {
-	Key   string `json:"key"`
-	Value string `json:"value"`
+	Key   string `json:"key,omitempty"`
+	Value string `json:"value,omitempty"`
 }
 
 type Docker struct {
-	Image          string        `json:"image"`
-	Parameters     []Parameter   `json:"parameters"`
-	Privileged     bool          `json:"privileged"`
-	Network        string        `json:"network"`
-	PortMappings   []PortMapping `json:"portMappings"`
-	ForcePullImage bool          `json:"forcePullImage"`
+	Image          string        `json:"image,omitempty"`
+	Parameters     []Parameter   `json:"parameters,omitempty"`
+	Privileged     bool          `json:"privileged,omitempty"`
+	Network        string        `json:"network,omitempty"`
+	PortMappings   []PortMapping `json:"portMappings,omitempty"`
+	ForcePullImage bool          `json:"forcePullImage,omitempty"`
 }
 
 type Volume struct {
-	ContainerPath string `json:"containerPath"`
-	HostPath      string `json:"hostPath"`
-	Mode          string `json:"mode"`
+	ContainerPath string `json:"containerPath,omitempty"`
+	HostPath      string `json:"hostPath,omitempty"`
+	Mode          string `json:"mode,omitempty"`
 }
 
 type Container struct {
-	Docker  *Docker  `json:"docker"`
-	Type    string   `json:"type"`
-	Volumes []Volume `json:"volumes"`
+	Docker  *Docker  `json:"docker,omitempty"`
+	Type    string   `json:"type,omitempty"`
+	Volumes []Volume `json:"volumes,omitempty"`
 }
 
 type HealthCheck struct {
-	Path                   string `json:"path"`
-	PortIndex              int    `json:"portIndex"`
-	Protocol               string `json:"protocol"`
-	GracePeriodSeconds     int    `json:"gracePeriodSeconds"`
-	IntervalSeconds        int    `json:"intervalSeconds"`
-	TimeoutSeconds         int    `json:"timeoutSeconds"`
-	MaxConsecutiveFailures int    `json:"maxConsecutiveFailures"`
+	Path                   string `json:"path,omitempty"`
+	PortIndex              int    `json:"portIndex,omitempty"`
+	Protocol               string `json:"protocol,omitempty"`
+	GracePeriodSeconds     int    `json:"gracePeriodSeconds,omitempty"`
+	IntervalSeconds        int    `json:"intervalSeconds,omitempty"`
+	TimeoutSeconds         int    `json:"timeoutSeconds,omitempty"`
+	MaxConsecutiveFailures int    `json:"maxConsecutiveFailures,omitempty"`
 }
 
 type UpgradeStrategy struct {
-	MinimumHealthCapacity float64 `json:"minimumHealthCapacity"`
-	MaximumOverCapacity   float64 `json:"maximumOverCapacity"`
+	MinimumHealthCapacity float64 `json:"minimumHealthCapacity,omitempty"`
+	MaximumOverCapacity   float64 `json:"maximumOverCapacity,omitempty"`
 }
 
 type App struct {
-	Args            []string          `json:"args"`
-	BackoffFactor   float64           `json:"backoffFactor"`
-	BackoffSeconds  int               `json:"backoffSeconds"`
-	Cmd             string            `json:"cmd"`
-	Constraints     [][]string        `json:"constraints"`
-	Container       *Container        `json:"container"`
-	CPUs            float64           `json:"cpus"`
-	Dependencies    []string          `json:"dependencies"`
-	Disk            float64           `json:"disk"`
-	Env             map[string]string `json:"env"`
-	Executor        string            `json:"executor"`
-	Labels          map[string]string `json:"labels"`
-	HealthChecks    []HealthCheck     `json:"healthChecks"`
-	ID              string            `json:"id"`
-	Instances       int               `json:"instances"`
-	Mem             float64           `json:"mem"`
-	Ports           []int             `json:"ports"`
-	RequirePorts    bool              `json:"requirePorts"`
-	StoreUrls       []string          `json:"storeUrls"`
-	UpgradeStrategy UpgradeStrategy   `json:"upgradeStrategy"`
-	Uris            []string          `json:"uris"`
+	Args            []string          `json:"args,omitempty"`
+	BackoffFactor   float64           `json:"backoffFactor,omitempty"`
+	BackoffSeconds  int               `json:"backoffSeconds,omitempty"`
+	Cmd             string            `json:"cmd,omitempty"`
+	Constraints     [][]string        `json:"constraints,omitempty"`
+	Container       *Container        `json:"container,omitempty"`
+	CPUs            float64           `json:"cpus,omitempty"`
+	Dependencies    []string          `json:"dependencies,omitempty"`
+	Disk            float64           `json:"disk,omitempty"`
+	Env             map[string]string `json:"env,omitempty"`
+	Executor        string            `json:"executor,omitempty"`
+	Labels          map[string]string `json:"labels,omitempty"`
+	HealthChecks    []HealthCheck     `json:"healthChecks,omitempty"`
+	ID              string            `json:"id,omitempty"`
+	Instances       int               `json:"instances,omitempty"`
+	Mem             float64           `json:"mem,omitempty"`
+	Ports           []int             `json:"ports,omitempty"`
+	RequirePorts    bool              `json:"requirePorts,omitempty"`
+	StoreUrls       []string          `json:"storeUrls,omitempty"`
+	UpgradeStrategy UpgradeStrategy   `json:"upgradeStrategy,omitempty"`
+	Uris            []string          `json:"uris,omitempty"`
 	User            string            `json:"user,omitempty"`
 	Version         string            `json:"version,omitempty"`
 }
