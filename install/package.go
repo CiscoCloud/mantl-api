@@ -165,18 +165,18 @@ func (g packageConfigGroup) defaultConfig() map[string]interface{} {
 }
 
 type packageDefinition struct {
-	commandJson    []byte
-	configJson     []byte
-	marathonJson   []byte
-	packageJson    []byte
-	optionsJson    []byte
-	uninstallJson  []byte
-	internalConfig map[string]string
-	name           string
-	version        string
-	release        string
-	framework      bool
-	frameworkName  string
+	commandJson   []byte
+	configJson    []byte
+	marathonJson  []byte
+	packageJson   []byte
+	optionsJson   []byte
+	uninstallJson []byte
+	apiConfig     map[string]interface{}
+	name          string
+	version       string
+	release       string
+	framework     bool
+	frameworkName string
 }
 
 func (d packageDefinition) IsValid() bool {
@@ -208,13 +208,16 @@ func (d packageDefinition) Options() (map[string]interface{}, error) {
 			return nil, err
 		}
 
-		renderedOptions := tmpl.Render(d.internalConfig)
+		renderedOptions := tmpl.Render(d.apiConfig)
 
 		err = json.Unmarshal([]byte(renderedOptions), &options)
 		if err != nil {
 			log.Errorf("Could not unmarshal options json: %v", err)
 			return nil, err
 		}
+
+		// add api config to options
+		options["mantl"] = d.apiConfig["mantl"]
 	}
 
 	return options, nil
@@ -338,7 +341,7 @@ func (install *Install) getPackageByName(name string) (*Package, error) {
 	return nil, nil
 }
 
-func (install *Install) GetPackageDefinition(name string, version string, internalConfig map[string]string) (*packageDefinition, error) {
+func (install *Install) GetPackageDefinition(name string, version string, apiConfig map[string]interface{}) (*packageDefinition, error) {
 	pkg, err := install.getPackageByName(name)
 	if err != nil {
 		return nil, err
@@ -359,11 +362,11 @@ func (install *Install) GetPackageDefinition(name string, version string, intern
 	}
 
 	pkgDef := &packageDefinition{
-		name:           pkg.Name,
-		version:        pkgVersion.Version,
-		release:        pkgVersion.Index,
-		framework:      pkg.Framework,
-		internalConfig: internalConfig,
+		name:      pkg.Name,
+		version:   pkgVersion.Version,
+		release:   pkgVersion.Index,
+		framework: pkg.Framework,
+		apiConfig: apiConfig,
 	}
 
 	for _, repo := range repositories {

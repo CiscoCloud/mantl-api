@@ -49,12 +49,17 @@ func (install *Install) LayerRepositories() (RepositoryCollection, error) {
 }
 
 func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
-	internalConfig := map[string]string{
-		"mantl-install-mesos-principal": install.mesos.Principal,
-		"mantl-install-mesos-secret":    install.mesos.Secret,
+	apiConfig := map[string]interface{}{
+		"mantl": map[string]interface{}{
+			"mesos": map[string]interface{}{
+				"principal": install.mesos.Principal,
+				"secret":    install.mesos.Secret,
+			},
+		},
 	}
 
-	pkgDef, err := install.GetPackageDefinition(pkgReq.Name, pkgReq.Version, internalConfig)
+	pkgDef, err := install.GetPackageDefinition(pkgReq.Name, pkgReq.Version, apiConfig)
+
 	if err != nil {
 		log.Errorf("Could not find package definition: %v", err)
 		return "", err
