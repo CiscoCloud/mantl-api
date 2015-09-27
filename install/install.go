@@ -132,12 +132,15 @@ func (install *Install) UninstallPackage(pkgReq *PackageRequest) (string, error)
 	return "", nil
 }
 
-func (install *Install) SyncSources(sources []*Source) error {
+func (install *Install) SyncSources(sources []*Source, force bool) error {
 	// sync repositories if they don't exist
 	for _, source := range sources {
 		ts, err := install.sourceLastUpdated(source)
 		log.Debugf("%s source last updated at %v", source.Name, ts)
-		if err != nil || ts.IsZero() {
+		if err != nil || ts.IsZero() || force {
+			if force {
+				log.Debugf("Forcing sync")
+			}
 			log.Debugf("Syncing %v source", source.Name)
 			err := install.syncSource(source)
 			if err != nil {

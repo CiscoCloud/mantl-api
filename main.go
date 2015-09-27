@@ -81,7 +81,7 @@ func start() {
 			Index:      0,
 		},
 	}
-	inst.SyncSources(sources)
+	inst.SyncSources(sources, viper.GetBool("force-sync"))
 
 	// start listener
 	api.NewApi(viper.GetString("listen"), inst).Start()
@@ -112,6 +112,7 @@ func main() {
 	rootCmd.PersistentFlags().Bool("mesos-no-verify-ssl", false, "Mesos SSL verification")
 	rootCmd.PersistentFlags().String("listen", ":4001", "mantl-api listen address")
 	rootCmd.PersistentFlags().String("zookeeper", "localhost:2181", "Comma-delimited list of zookeeper servers")
+	rootCmd.PersistentFlags().Bool("force-sync", false, "Force a synchronization of all sources")
 
 	for _, flags := range []*pflag.FlagSet{rootCmd.PersistentFlags()} {
 		err := viper.BindPFlags(flags)
