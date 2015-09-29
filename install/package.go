@@ -172,6 +172,7 @@ type packageDefinition struct {
 	optionsJson   []byte
 	uninstallJson []byte
 	apiConfig     map[string]interface{}
+	userConfig    map[string]interface{}
 	name          string
 	version       string
 	release       string
@@ -216,8 +217,11 @@ func (d packageDefinition) Options() (map[string]interface{}, error) {
 			return nil, err
 		}
 
+		// merge user config
+		mergedOptions := mergeConfig(options, d.userConfig)
+
 		// add api config to options
-		options["mantl"] = d.apiConfig["mantl"]
+		mergedOptions["mantl"] = d.apiConfig["mantl"]
 	}
 
 	return options, nil
@@ -341,7 +345,7 @@ func (install *Install) getPackageByName(name string) (*Package, error) {
 	return nil, nil
 }
 
-func (install *Install) GetPackageDefinition(name string, version string, apiConfig map[string]interface{}) (*packageDefinition, error) {
+func (install *Install) GetPackageDefinition(name string, version string, userConfig map[string]interface{}, apiConfig map[string]interface{}) (*packageDefinition, error) {
 	pkg, err := install.getPackageByName(name)
 	if err != nil {
 		return nil, err
@@ -362,11 +366,12 @@ func (install *Install) GetPackageDefinition(name string, version string, apiCon
 	}
 
 	pkgDef := &packageDefinition{
-		name:      pkg.Name,
-		version:   pkgVersion.Version,
-		release:   pkgVersion.Index,
-		framework: pkg.Framework,
-		apiConfig: apiConfig,
+		name:       pkg.Name,
+		version:    pkgVersion.Version,
+		release:    pkgVersion.Index,
+		framework:  pkg.Framework,
+		apiConfig:  apiConfig,
+		userConfig: userConfig,
 	}
 
 	for _, repo := range repositories {

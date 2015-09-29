@@ -58,7 +58,7 @@ func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
 		},
 	}
 
-	pkgDef, err := install.GetPackageDefinition(pkgReq.Name, pkgReq.Version, apiConfig)
+	pkgDef, err := install.GetPackageDefinition(pkgReq.Name, pkgReq.Version, pkgReq.Config, apiConfig)
 
 	if err != nil {
 		log.Errorf("Could not find package definition: %v", err)
@@ -155,7 +155,7 @@ func (install *Install) SyncSources(sources []*Source, force bool) error {
 func (install *Install) postUninstall(app *marathon.App) error {
 	name := app.Labels[packageNameKey]
 	version := app.Labels[packageVersionKey]
-	pkgDef, err := install.GetPackageDefinition(name, version, nil)
+	pkgDef, err := install.GetPackageDefinition(name, version, nil, nil)
 	if err != nil {
 		log.Errorf("Could not perform post-install for %s. Could not find package definition: %v", name, err)
 		return err

@@ -100,6 +100,7 @@ func (m Mesos) ShutdownFrameworkByName(name string) (string, error) {
 	}
 
 	// shutdown mesos framework
+	log.Debugf("Shutting down framework: %s", frameworkId)
 	return m.Shutdown(frameworkId)
 }
 

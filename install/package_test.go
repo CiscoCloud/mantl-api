@@ -402,6 +402,24 @@ func TestMarathon(t *testing.T) {
 	assert.True(t, strings.Contains(marathon, "\"MESOS_ZK\": \"zk://zookeeper.service.consul:2181/mesos\""))
 }
 
+func TestUserConfig(t *testing.T) {
+	t.Parallel()
+
+	pkgDef := &packageDefinition{
+		configJson:   []byte(configJson),
+		optionsJson:  []byte(optionsJson),
+		marathonJson: []byte(marathonJson),
+		userConfig: map[string]interface{}{
+			"cassandra": map[string]interface{}{
+				"cluster-name": "my-dcos",
+			},
+		},
+	}
+
+	merged, _ := pkgDef.MergedConfig()
+	assert.Equal(t, "my-dcos", getConfigVal(merged, "cassandra", "cluster-name"))
+}
+
 func getConfigVal(m map[string]interface{}, keys ...string) interface{} {
 	nested := m
 	for _, key := range keys {
