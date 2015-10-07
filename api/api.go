@@ -91,15 +91,19 @@ func (api *Api) uninstallPackage(w http.ResponseWriter, req *http.Request, ps ht
 		return
 	}
 
-	marathonResponse, err := api.install.UninstallPackage(pkgRequest)
+	app := api.install.FindInstalled(pkgRequest)
+	if app == nil {
+		w.WriteHeader(404)
+		return
+	}
+
+	err = api.install.UninstallPackage(app)
 	if err != nil {
 		api.writeError(w, fmt.Sprintf("Could not uninstall %s package", pkgRequest.Name), err)
 		return
 	}
 
-	w.Header().Set("Content-Type", "application/json")
-	w.WriteHeader(200)
-	fmt.Fprintf(w, marathonResponse)
+	w.WriteHeader(204)
 }
 
 func (api *Api) writeError(w http.ResponseWriter, msg string, err error) {

@@ -1,6 +1,7 @@
 package install
 
 import (
+	"errors"
 	"github.com/CiscoCloud/mantl-api/marathon"
 	"github.com/CiscoCloud/mantl-api/mesos"
 	"github.com/CiscoCloud/mantl-api/zookeeper"
@@ -91,45 +92,50 @@ func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
 	return response, nil
 }
 
-func (install *Install) UninstallPackage(pkgReq *PackageRequest) (string, error) {
+func (install *Install) FindInstalled(pkgReq *PackageRequest) *marathon.App {
 	// find marathon app by id
 	matching := install.findInstalledApp(pkgReq)
 
 	if matching == nil {
 		log.Warnf("Could not find matching package for %s %s", pkgReq.Name, pkgReq.Version)
-		return "", nil
 	}
 
-	log.Debugf("Found matching app at %s", matching.ID)
+	return matching
+}
+
+func (install *Install) UninstallPackage(app *marathon.App) error {
+	if app == nil {
+		return errors.New("App cannot be nil when uninstalling a package")
+	}
 
 	// get framework name
-	fwName := matching.Labels[packageFrameworkNameKey]
+	fwName := app.Labels[packageFrameworkNameKey]
 	if fwName == "" {
-		fwName = matching.Labels[dcosPackageFrameworkNameKey]
+		fwName = app.Labels[dcosPackageFrameworkNameKey]
 	}
 
 	// remove app from marathon
-	_, err := install.marathon.DestroyApp(matching.ID)
+	_, err := install.marathon.DestroyApp(app.ID)
 
 	if err != nil {
 		log.Errorf("Could not destroy app in Marathon: %v", err)
-		return "", err
+		return err
 	}
 
 	// shutdown mesos framework
-	_, err = install.mesos.ShutdownFrameworkByName(fwName)
+	err = install.mesos.ShutdownFrameworkByName(fwName)
 	if err != nil {
 		log.Errorf("Could not shutdown framework from Mesos: %v", err)
-		return "", err
+		return err
 	}
 
-	err = install.postUninstall(matching)
+	err = install.postUninstall(app)
 	if err != nil {
-		log.Errorf("Failed to run post-uninstall for %s", pkgReq.Name)
-		return "", nil
+		log.Errorf("Failed to run post-uninstall for %s", app.ID)
+		return nil
 	}
 
-	return "", nil
+	return nil
 }
 
 func (install *Install) SyncSources(sources []*Source, force bool) error {
