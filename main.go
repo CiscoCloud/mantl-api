@@ -50,7 +50,7 @@ func start() {
 	}
 
 	scheme, address = parseMesosAddress(viper.GetString("mesos"))
-	mesosClient, err := mesos.NewMesos(
+	mesosClient := mesos.NewMesos(
 		address,
 		scheme,
 		viper.GetString("mesos-principal"),

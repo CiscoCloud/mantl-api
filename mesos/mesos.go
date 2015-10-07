@@ -1,7 +1,6 @@
 package mesos
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/tls"
 	"encoding/json"
@@ -12,9 +11,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
-	"os"
-	"regexp"
-	"strings"
 )
 
 type Mesos struct {
@@ -40,21 +36,91 @@ type Framework struct {
 	Active bool   `json:"active"`
 }
 
-type StateResponse struct {
+type State struct {
 	CompletedFrameworks    []*Framework `json:"completed_frameworks"`
 	Frameworks             []*Framework `json:"frameworks"`
 	UnregisteredFrameworks []*Framework `json:"unregistered_frameworks"`
 }
 
-func (s *StateResponse) AllFrameworks() []*Framework {
-	return append(s.Frameworks, append(s.CompletedFrameworks, s.UnregisteredFrameworks...)...)
+func NewMesos(location, protocol string, principal string, secret string, verifySsl bool) *Mesos {
+	return &Mesos{location, protocol, principal, secret, verifySsl}
 }
 
-func NewMesos(location, protocol string, principal string, secret string, verifySsl bool) (*Mesos, error) {
-	return &Mesos{location, protocol, principal, secret, verifySsl}, nil
+func (m Mesos) Frameworks() ([]*Framework, error) {
+	state, err := m.state()
+	if err != nil {
+		return []*Framework{}, err
+	}
+
+	return state.Frameworks, nil
 }
 
-func (m Mesos) State() (*StateResponse, error) {
+func (m Mesos) Shutdown(frameworkId string) error {
+	log.Debugf("Shutting down framework: %s", frameworkId)
+	data := fmt.Sprintf("frameworkId=%s", frameworkId)
+	response, err := m.post("/master/teardown", []byte(data))
+	if err != nil {
+		return err
+	}
+	if response.StatusCode == 200 {
+		return nil
+	} else {
+		responseText, _ := m.responseText(response)
+		return errors.New(fmt.Sprintf("Could not shutdown framework %s: %d %s", frameworkId, response.StatusCode, responseText))
+	}
+}
+
+func (m Mesos) ShutdownFrameworkByName(name string) error {
+	log.Debugf("Looking for %s framework", name)
+
+	// find mesos framework
+	fw, err := m.FindFramework(name)
+	if err != nil {
+		return err
+	}
+
+	// shutdown mesos framework
+	return m.Shutdown(fw.ID)
+}
+
+func (m Mesos) FindFrameworks(name string) ([]*Framework, error) {
+	state, err := m.state()
+	if err != nil {
+		return []*Framework{}, err
+	}
+
+	matching := make(map[string]*Framework)
+	for _, fw := range state.Frameworks {
+		if fw.Name == name && fw.Active {
+			matching[fw.ID] = fw
+		}
+	}
+
+	var uniqueFws []*Framework
+	for _, fw := range matching {
+		uniqueFws = append(uniqueFws, fw)
+	}
+
+	return uniqueFws, nil
+}
+
+func (m Mesos) FindFramework(name string) (*Framework, error) {
+	fws, err := m.FindFrameworks(name)
+	if err != nil {
+		return nil, err
+	}
+
+	fwCount := len(fws)
+	if fwCount == 0 {
+		return nil, nil
+	} else if fwCount > 1 {
+		return nil, errors.New(fmt.Sprintf("There are %d %s frameworks.", fwCount, name))
+	}
+
+	return fws[0], nil
+}
+
+func (m Mesos) state() (*State, error) {
 	response, err := m.get("/master/state.json")
 	if err != nil {
 		return nil, err
@@ -65,43 +131,9 @@ func (m Mesos) State() (*StateResponse, error) {
 		return nil, err
 	}
 
-	state := &StateResponse{}
+	state := &State{}
 	err = json.Unmarshal(body, state)
 	return state, err
-}
-
-func (m Mesos) Shutdown(frameworkId string) (string, error) {
-	data := fmt.Sprintf("frameworkId=%s", frameworkId)
-	response, err := m.post("/master/teardown", []byte(data))
-	if err != nil {
-		return "", err
-	}
-	return m.responseText(response)
-}
-
-func (m Mesos) ShutdownFrameworkByName(name string) (string, error) {
-	// find mesos framework
-	state, _ := m.State()
-	matchingFrameworks := make(map[string]*Framework)
-	for _, fw := range state.Frameworks {
-		if fw.Name == name && fw.Active {
-			matchingFrameworks[fw.ID] = fw
-		}
-	}
-
-	if fwCount := len(matchingFrameworks); fwCount > 1 {
-		return "", errors.New(fmt.Sprintf("There are %d %s frameworks.", fwCount, name))
-	}
-
-	var frameworkId string
-	for fwid, _ := range matchingFrameworks {
-		frameworkId = fwid
-		break
-	}
-
-	// shutdown mesos framework
-	log.Debugf("Shutting down framework: %s", frameworkId)
-	return m.Shutdown(frameworkId)
 }
 
 func (m Mesos) get(url string) (*http.Response, error) {
@@ -175,6 +207,7 @@ func (m Mesos) responseBody(response *http.Response) ([]byte, error) {
 		return nil, nil
 	}
 
+	defer response.Body.Close()
 	body, err := ioutil.ReadAll(response.Body)
 	if err != nil {
 		log.Errorf("Could not read response body: %v", err)
@@ -215,30 +248,4 @@ func (m Mesos) logHTTP(resp *http.Response, method string, url string, err error
 	} else {
 		log.WithFields(fields).Debugf("%s %s", method, url)
 	}
-}
-
-func parseCredentials(filePath string) (map[string]string, error) {
-	credentials := make(map[string]string)
-
-	file, err := os.Open(filePath)
-	if err != nil {
-		log.Errorf("Could not open credentials file: %v", err)
-		return nil, err
-	}
-
-	defer file.Close()
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := strings.TrimSpace(scanner.Text())
-		parts := regexp.MustCompile("\\s+").Split(line, -1)
-		if len(parts) == 2 {
-			principal := strings.TrimSpace(parts[0])
-			secret := strings.TrimSpace(parts[1])
-			credentials[principal] = secret
-		}
-
-	}
-
-	return credentials, nil
 }
