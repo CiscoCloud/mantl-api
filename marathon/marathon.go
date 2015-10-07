@@ -5,6 +5,7 @@ import (
 	"crypto/tls"
 	"encoding/json"
 	"errors"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"io"
 	"io/ioutil"
@@ -103,8 +104,8 @@ type AppResponse struct {
 	Apps []*App `json:"apps"`
 }
 
-func NewMarathon(location, protocol string, username string, password string, verifySsl bool) (*Marathon, error) {
-	return &Marathon{location, protocol, username, password, verifySsl}, nil
+func NewMarathon(location, protocol string, username string, password string, verifySsl bool) *Marathon {
+	return &Marathon{location, protocol, username, password, verifySsl}
 }
 
 func (m Marathon) ToApp(appJson string) (*App, error) {
@@ -133,7 +134,7 @@ func (m Marathon) Apps() ([]*App, error) {
 func (m Marathon) CreateApp(app *App) (string, error) {
 	jsonBlob, err := json.Marshal(app)
 	if err != nil {
-		return "", nil
+		return "", err
 	}
 
 	log.Debugf("app json: %s", string(jsonBlob))
@@ -154,11 +155,16 @@ func (m Marathon) CreateApp(app *App) (string, error) {
 
 func (m Marathon) DestroyApp(appId string) (string, error) {
 	response, err := m.delete("/v2/apps" + appId)
-	if err != nil || (response.StatusCode != 200) {
+	if err != nil {
 		return "", err
 	}
 
-	return m.responseText(response)
+	responseText, _ := m.responseText(response)
+	if response.StatusCode != 200 {
+		return responseText, errors.New(fmt.Sprintf("Failed deleting %s from marathon: %s", appId, responseText))
+	}
+
+	return responseText, nil
 }
 
 func (m Marathon) get(url string) (*http.Response, error) {
