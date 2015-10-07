@@ -412,7 +412,8 @@ func (install *Install) GetPackageDefinition(name string, version string, userCo
 		return nil, err
 	}
 
-	if fwName, ok := config["framework-name"]; ok {
+	fwName := getConfigVal(config, pkgDef.name, "framework-name")
+	if fwName != nil {
 		if fwName, ok := fwName.(string); ok {
 			pkgDef.frameworkName = fwName
 		}
@@ -527,6 +528,7 @@ func transformedConfigValue(val interface{}) interface{} {
 		return val
 	}
 }
+
 func mergeConfig(config map[string]interface{}, override map[string]interface{}) map[string]interface{} {
 	for k, v := range override {
 		_, configExists := config[k]
@@ -540,4 +542,21 @@ func mergeConfig(config map[string]interface{}, override map[string]interface{})
 	}
 
 	return config
+}
+
+func getConfig(m map[string]interface{}, node string) interface{} {
+	keys := strings.Split(node, ".")
+	return getConfigVal(m, keys...)
+}
+
+func getConfigVal(m map[string]interface{}, keys ...string) interface{} {
+	nested := m
+	for _, key := range keys {
+		if nm, ok := nested[key].(map[string]interface{}); ok {
+			nested = nm
+		} else if val, ok := nested[key]; ok {
+			return val
+		}
+	}
+	return nil
 }

@@ -419,15 +419,3 @@ func TestUserConfig(t *testing.T) {
 	merged, _ := pkgDef.MergedConfig()
 	assert.Equal(t, "my-dcos", getConfigVal(merged, "cassandra", "cluster-name"))
 }
-
-func getConfigVal(m map[string]interface{}, keys ...string) interface{} {
-	nested := m
-	for _, key := range keys {
-		if nm, ok := nested[key].(map[string]interface{}); ok {
-			nested = nm
-		} else if val, ok := nested[key]; ok {
-			return val
-		}
-	}
-	return nil
-}
