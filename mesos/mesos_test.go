@@ -3,6 +3,7 @@ package mesos
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -222,7 +223,7 @@ var stateJson = `
 // TODO: test when multiple active frameworks
 func TestFindFrameworks(t *testing.T) {
 	t.Parallel()
-	ts, mesos := fakeMesos(t)
+	ts, mesos := fakeMesos(mesosStateHandler)
 	defer ts.Close()
 
 	fws, _ := mesos.FindFrameworks("chronos")
@@ -232,24 +233,25 @@ func TestFindFrameworks(t *testing.T) {
 
 func TestFindFramework(t *testing.T) {
 	t.Parallel()
-	ts, mesos := fakeMesos(t)
+	ts, mesos := fakeMesos(mesosStateHandler)
 	defer ts.Close()
 	fw, _ := mesos.FindFramework("chronos")
 	assert.Equal(t, "chronos", fw.Name)
 }
 
-// TODO: test when multiple active frameworks
 func TestFindFrameworkNoMatching(t *testing.T) {
 	t.Parallel()
-	ts, mesos := fakeMesos(t)
+	ts, mesos := fakeMesos(mesosStateHandler)
 	defer ts.Close()
 	fw, _ := mesos.FindFramework("fake")
 	assert.Nil(t, fw)
 }
 
+// TODO: test when multiple active frameworks
+
 func TestFrameworks(t *testing.T) {
 	t.Parallel()
-	ts, mesos := fakeMesos(t)
+	ts, mesos := fakeMesos(mesosStateHandler)
 	defer ts.Close()
 
 	fws, _ := mesos.Frameworks()
@@ -263,14 +265,71 @@ func TestFrameworks(t *testing.T) {
 	assert.Equal(t, []string{"chronos", "marathon"}, fwNames)
 }
 
-func fakeMesos(t *testing.T) (*httptest.Server, *Mesos) {
-	stateHandler := func(w http.ResponseWriter, r *http.Request) {
-		fmt.Fprint(w, stateJson)
-	}
+func TestShutdown(t *testing.T) {
+	t.Parallel()
+	ts, mesos := fakeMesos(func(w http.ResponseWriter, r *http.Request) {})
+	defer ts.Close()
 
-	ts := httptest.NewServer(http.HandlerFunc(stateHandler))
+	fwId := "20151006-135938-938649792-15050-8041-0000"
+	err := mesos.Shutdown(fwId)
+	assert.Nil(t, err)
+}
+
+func TestShutdownError(t *testing.T) {
+	t.Parallel()
+
+	errMsg := "No framework found with specified ID"
+	statusCode := 400
+	fwId := "123"
+	ts, mesos := fakeMesos(func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(statusCode)
+		fmt.Fprintf(w, errMsg)
+	})
+	defer ts.Close()
+
+	err := mesos.Shutdown(fwId)
+	assert.NotNil(t, err)
+	expected := fmt.Sprintf("Could not shutdown framework %s: %d %s", fwId, statusCode, errMsg)
+	assert.Equal(t, expected, err.Error())
+}
+
+func TestShutdownFrameworkByName(t *testing.T) {
+	t.Parallel()
+	var payload string
+	ts, mesos := fakeMesos(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/master/state.json" {
+			fmt.Fprint(w, stateJson)
+		} else {
+			reqData, _ := ioutil.ReadAll(r.Body)
+			payload = string(reqData)
+		}
+	})
+	defer ts.Close()
+
+	fwName := "chronos"
+	err := mesos.ShutdownFrameworkByName(fwName)
+	assert.Nil(t, err)
+	assert.Equal(t, "frameworkId=20151006-135938-938649792-15050-8041-0000", payload)
+}
+
+func TestShutdownFrameworkByNameNotFound(t *testing.T) {
+	t.Parallel()
+	ts, mesos := fakeMesos(mesosStateHandler)
+	defer ts.Close()
+
+	fwName := "fakefw"
+	err := mesos.ShutdownFrameworkByName(fwName)
+	assert.Nil(t, err)
+}
+
+func fakeMesos(handler func(w http.ResponseWriter, r *http.Request)) (*httptest.Server, *Mesos) {
+	ts := httptest.NewServer(http.HandlerFunc(handler))
 
 	url, _ := url.Parse(ts.URL)
 	mesos := NewMesos(url.Host, url.Scheme, "", "", false)
 	return ts, mesos
+}
+
+func mesosStateHandler(w http.ResponseWriter, r *http.Request) {
+	fmt.Fprint(w, stateJson)
 }

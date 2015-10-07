@@ -79,6 +79,11 @@ func (m Mesos) ShutdownFrameworkByName(name string) error {
 		return err
 	}
 
+	if fw == nil {
+		log.Debugf("Framework %s not active", name)
+		return nil
+	}
+
 	// shutdown mesos framework
 	return m.Shutdown(fw.ID)
 }
