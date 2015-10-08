@@ -18,75 +18,6 @@ import (
 const Name = "mantl-api"
 const Version = "0.1.0"
 
-func start() {
-	consulConfig := consul.DefaultConfig()
-	scheme, address := parseConsulAddress(viper.GetString("consul"))
-	consulConfig.Scheme = scheme
-	consulConfig.Address = address
-
-	log.Debugf("Using Consul at %s over %s", consulConfig.Address, consulConfig.Scheme)
-
-	client, err := consul.NewClient(consulConfig)
-	if err != nil {
-		log.Fatalf("Could not create consul client: %v", err)
-	}
-
-	// abort if we cannot connect to consul
-	err = testConsul(client)
-	if err != nil {
-		log.Fatalf("Could not connect to consul: %v", err)
-	}
-
-	scheme, address = parseMarathonAddress(viper.GetString("marathon"))
-	marathonClient := marathon.NewMarathon(
-		address,
-		scheme,
-		viper.GetString("marathon-user"),
-		viper.GetString("marathon-password"),
-		viper.GetBool("marathon-no-verify-ssl"),
-	)
-	if err != nil {
-		log.Fatalf("Could not get marathon client: %v", err)
-	}
-
-	scheme, address = parseMesosAddress(viper.GetString("mesos"))
-	mesosClient := mesos.NewMesos(
-		address,
-		scheme,
-		viper.GetString("mesos-principal"),
-		viper.GetString("mesos-secret"),
-		viper.GetBool("mesos-no-verify-ssl"),
-	)
-	if err != nil {
-		log.Fatalf("Could not get mesos client: %v", err)
-	}
-
-	zkServers := strings.Split(viper.GetString("zookeeper"), ",")
-	zk := zookeeper.NewZookeeper(zkServers)
-
-	inst := install.NewInstall(client, marathonClient, mesosClient, zk)
-
-	// sync sources to consul
-	sources := []*install.Source{
-		&install.Source{
-			Name:       "mantl",
-			Path:       "https://github.com/CiscoCloud/mantl-universe.git",
-			SourceType: install.Git,
-			Index:      1,
-		},
-		&install.Source{
-			Name:       "mesosphere",
-			Path:       "https://github.com/mesosphere/universe.git",
-			SourceType: install.Git,
-			Index:      0,
-		},
-	}
-	inst.SyncSources(sources, viper.GetBool("force-sync"))
-
-	// start listener
-	api.NewApi(viper.GetString("listen"), inst).Start()
-}
-
 func main() {
 	rootCmd := &cobra.Command{
 		Use:   "mantl-api",
@@ -125,13 +56,102 @@ func main() {
 	viper.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
 	viper.AutomaticEnv()
 
+	syncCommand := &cobra.Command{
+		Use:   "sync",
+		Short: "Synchronize universe repositories",
+		Long:  "Forces a synchronization of all configured sources",
+		Run: func(cmd *cobra.Command, args []string) {
+			sync(nil, true)
+		},
+	}
+	rootCmd.AddCommand(syncCommand)
+
 	rootCmd.Execute()
+}
+
+func start() {
+	client := consulClient()
+
+	scheme, address := parseMarathonAddress(viper.GetString("marathon"))
+	marathonClient := marathon.NewMarathon(
+		address,
+		scheme,
+		viper.GetString("marathon-user"),
+		viper.GetString("marathon-password"),
+		viper.GetBool("marathon-no-verify-ssl"),
+	)
+
+	scheme, address = parseMesosAddress(viper.GetString("mesos"))
+	mesosClient := mesos.NewMesos(
+		address,
+		scheme,
+		viper.GetString("mesos-principal"),
+		viper.GetString("mesos-secret"),
+		viper.GetBool("mesos-no-verify-ssl"),
+	)
+
+	zkServers := strings.Split(viper.GetString("zookeeper"), ",")
+	zk := zookeeper.NewZookeeper(zkServers)
+
+	inst := install.NewInstall(client, marathonClient, mesosClient, zk)
+
+	// sync sources to consul
+	sync(inst, viper.GetBool("force-sync"))
+
+	// start listener
+	api.NewApi(viper.GetString("listen"), inst).Start()
+}
+
+func consulClient() *consul.Client {
+	consulConfig := consul.DefaultConfig()
+	scheme, address := parseConsulAddress(viper.GetString("consul"))
+	consulConfig.Scheme = scheme
+	consulConfig.Address = address
+
+	log.Debugf("Using Consul at %s over %s", consulConfig.Address, consulConfig.Scheme)
+
+	client, err := consul.NewClient(consulConfig)
+	if err != nil {
+		log.Fatalf("Could not create consul client: %v", err)
+	}
+
+	// abort if we cannot connect to consul
+	err = testConsul(client)
+	if err != nil {
+		log.Fatalf("Could not connect to consul: %v", err)
+	}
+
+	return client
 }
 
 func testConsul(client *consul.Client) error {
 	kv := client.KV()
 	_, _, err := kv.Get("mantl-install", nil)
 	return err
+}
+
+func sync(inst *install.Install, force bool) {
+	if inst == nil {
+		client := consulClient()
+		inst = install.NewInstall(client, nil, nil, nil)
+	}
+
+	sources := []*install.Source{
+		&install.Source{
+			Name:       "mantl",
+			Path:       "https://github.com/CiscoCloud/mantl-universe.git",
+			SourceType: install.Git,
+			Index:      1,
+		},
+		&install.Source{
+			Name:       "mesosphere",
+			Path:       "https://github.com/mesosphere/universe.git",
+			SourceType: install.Git,
+			Index:      0,
+		},
+	}
+
+	inst.SyncSources(sources, force)
 }
 
 func parseConsulAddress(u string) (scheme string, host string) {
