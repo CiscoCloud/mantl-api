@@ -70,7 +70,7 @@ func (api *Api) describePackage(w http.ResponseWriter, req *http.Request, ps htt
 func (api *Api) installPackage(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	req.Header.Add("Accept", "application/json")
 
-	pkgRequest, err := api.parsePackageRequest(w, req.Body)
+	pkgRequest, err := api.parsePackageRequest(req.Body, "")
 
 	if err != nil || pkgRequest == nil {
 		api.writeError(w, "Could not parse package request", err)
@@ -91,7 +91,8 @@ func (api *Api) installPackage(w http.ResponseWriter, req *http.Request, ps http
 func (api *Api) uninstallPackage(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
 	req.Header.Add("Accept", "application/json")
 
-	pkgRequest, err := api.parsePackageRequest(w, req.Body)
+	name := ps.ByName("name")
+	pkgRequest, err := api.parsePackageRequest(req.Body, name)
 
 	if err != nil || pkgRequest == nil {
 		api.writeError(w, "Could not parse package request", err)
@@ -120,7 +121,7 @@ func (api *Api) writeError(w http.ResponseWriter, msg string, err error) {
 	fmt.Fprintln(w, m)
 }
 
-func (api *Api) parsePackageRequest(w http.ResponseWriter, r io.Reader) (*install.PackageRequest, error) {
+func (api *Api) parsePackageRequest(r io.Reader, pkgName string) (*install.PackageRequest, error) {
 	body, err := ioutil.ReadAll(r)
 	if err != nil {
 		log.Errorf("Unable to read request body: %v", err)
@@ -130,6 +131,10 @@ func (api *Api) parsePackageRequest(w http.ResponseWriter, r io.Reader) (*instal
 	pkgRequest, err := install.NewPackageRequest(body)
 	if err != nil {
 		return nil, err
+	}
+
+	if pkgName != "" {
+		pkgRequest.Name = pkgName
 	}
 
 	return pkgRequest, nil

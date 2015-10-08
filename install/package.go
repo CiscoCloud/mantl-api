@@ -30,9 +30,11 @@ type PackageRequest struct {
 	UninstallOptions map[string]interface{} `json:"uninstallOptions"`
 }
 
-func NewPackageRequest(data []byte) (*PackageRequest, error) {
-	request := &PackageRequest{}
-	err := json.Unmarshal(data, &request)
+func NewPackageRequest(data []byte) (request *PackageRequest, err error) {
+	request = &PackageRequest{}
+	if len(data) > 0 {
+		err = json.Unmarshal(data, &request)
+	}
 	return request, err
 }
 
