@@ -1,33 +1,17 @@
 package mesos
 
 import (
-	"bytes"
-	"crypto/tls"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/CiscoCloud/mantl-api/utils/http"
 	log "github.com/Sirupsen/logrus"
-	"io"
-	"io/ioutil"
-	"net/http"
-	"net/url"
 )
 
 type Mesos struct {
-	Location    string
-	Protocol    string
-	Principal   string
-	Secret      string
-	NoVerifySsl bool
-}
-
-func DefaultConfig() *Mesos {
-	return &Mesos{
-		Location:    "localhost:5050",
-		Protocol:    "http",
-		NoVerifySsl: false,
-		Principal:   "mantl-install",
-	}
+	Principal  string
+	Secret     string
+	httpClient *http.HttpClient
 }
 
 type Framework struct {
@@ -42,8 +26,18 @@ type State struct {
 	UnregisteredFrameworks []*Framework `json:"unregistered_frameworks"`
 }
 
-func NewMesos(location, protocol string, principal string, secret string, verifySsl bool) *Mesos {
-	return &Mesos{location, protocol, principal, secret, verifySsl}
+func NewMesos(location, protocol string, principal string, secret string, noVerifySsl bool) *Mesos {
+	return &Mesos{
+		Principal: principal,
+		Secret:    secret,
+		httpClient: &http.HttpClient{
+			Location:    location,
+			Protocol:    protocol,
+			Username:    principal,
+			Password:    secret,
+			NoVerifySsl: noVerifySsl,
+		},
+	}
 }
 
 func (m Mesos) Frameworks() ([]*Framework, error) {
@@ -58,15 +52,15 @@ func (m Mesos) Frameworks() ([]*Framework, error) {
 func (m Mesos) Shutdown(frameworkId string) error {
 	log.Debugf("Shutting down framework: %s", frameworkId)
 	data := fmt.Sprintf("frameworkId=%s", frameworkId)
-	response, err := m.post("/master/teardown", []byte(data))
+	httpReq, err := m.httpClient.Post("/master/teardown", []byte(data))
 	if err != nil {
 		return err
 	}
-	if response.StatusCode == 200 {
+	if httpReq.Response.StatusCode == 200 {
 		return nil
 	} else {
-		responseText, _ := m.responseText(response)
-		return errors.New(fmt.Sprintf("Could not shutdown framework %s: %d %s", frameworkId, response.StatusCode, responseText))
+		responseText := httpReq.ResponseText
+		return errors.New(fmt.Sprintf("Could not shutdown framework %s: %d %s", frameworkId, httpReq.Response.StatusCode, responseText))
 	}
 }
 
@@ -126,12 +120,12 @@ func (m Mesos) FindFramework(name string) (*Framework, error) {
 }
 
 func (m Mesos) state() (*State, error) {
-	response, err := m.get("/master/state.json")
+	httpReq, err := m.httpClient.Get("/master/state.json")
 	if err != nil {
 		return nil, err
 	}
 
-	body, err := m.responseBody(response)
+	body := httpReq.ResponseBody
 	if err != nil {
 		return nil, err
 	}
@@ -139,118 +133,4 @@ func (m Mesos) state() (*State, error) {
 	state := &State{}
 	err = json.Unmarshal(body, state)
 	return state, err
-}
-
-func (m Mesos) get(url string) (*http.Response, error) {
-	return m.doRequest("GET", url, nil)
-}
-
-func (m Mesos) delete(url string) (*http.Response, error) {
-	return m.doRequest("DELETE", url, nil)
-}
-
-func (m Mesos) post(url string, data []byte) (*http.Response, error) {
-	return m.doRequest("POST", url, data)
-}
-
-func (m Mesos) doRequest(method string, path string, data []byte) (*http.Response, error) {
-	url := m.url(path)
-	client := m.getClient()
-
-	var buf io.Reader
-	if len(data) > 0 {
-		buf = bytes.NewBuffer(data)
-	}
-
-	log.Debugf("%s %s", method, url)
-	request, err := http.NewRequest(method, url, buf)
-	request.Header.Add("Content-Type", "application/json")
-	request.Header.Add("Accept", "application/json")
-
-	if m.Principal != "" && m.Secret != "" {
-		request.SetBasicAuth(m.Principal, m.Secret)
-	}
-
-	if err != nil {
-		log.WithFields(log.Fields{
-			"method": method,
-			"url":    url,
-		}).Error(err)
-		return nil, err
-	}
-
-	response, err := client.Do(request)
-	m.logHTTP(response, method, url, err)
-
-	return response, err
-}
-
-func (m Mesos) getClient() *http.Client {
-	client := &http.Client{}
-	client.Transport = &http.Transport{
-		Proxy: http.ProxyFromEnvironment,
-		TLSClientConfig: &tls.Config{
-			InsecureSkipVerify: m.NoVerifySsl,
-		},
-	}
-
-	return client
-}
-
-func (m Mesos) url(path string) string {
-	u := url.URL{
-		Scheme: m.Protocol,
-		Host:   m.Location,
-		Path:   path,
-	}
-
-	return u.String()
-}
-
-func (m Mesos) responseBody(response *http.Response) ([]byte, error) {
-	if response == nil {
-		return nil, nil
-	}
-
-	defer response.Body.Close()
-	body, err := ioutil.ReadAll(response.Body)
-	if err != nil {
-		log.Errorf("Could not read response body: %v", err)
-		return nil, err
-	}
-
-	return body, nil
-}
-
-func (m Mesos) responseText(response *http.Response) (string, error) {
-	responseText := ""
-
-	body, err := m.responseBody(response)
-	if err != nil {
-		return responseText, err
-	}
-
-	if len(body) > 0 {
-		responseText = string(body)
-	}
-
-	return responseText, nil
-}
-
-func (m Mesos) logHTTP(resp *http.Response, method string, url string, err error) {
-	fields := log.Fields{
-		"url":    url,
-		"method": method,
-	}
-
-	if resp != nil {
-		fields["status"] = resp.Status
-		fields["statusCode"] = resp.StatusCode
-	}
-
-	if err != nil {
-		log.WithFields(fields).Error(err.Error())
-	} else {
-		log.WithFields(fields).Debugf("%s %s", method, url)
-	}
 }
