@@ -67,12 +67,16 @@ func (c HttpClient) doRequest(method string, path string, data []byte) (*HttpReq
 		return nil, err
 	}
 
-	response, err := client.Do(request)
-	logHTTP(response, method, url, err)
-
 	httpReq := &HttpRequest{
-		Request:  request,
-		Response: response,
+		Request:      request,
+		ResponseBody: []byte{},
+	}
+
+	response, err := client.Do(request)
+	httpReq.Response = response
+
+	if err != nil {
+		return httpReq, err
 	}
 
 	responseBody, err := responseBody(response)
