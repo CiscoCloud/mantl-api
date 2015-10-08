@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"sort"
 	"testing"
 )
@@ -325,8 +324,7 @@ func TestShutdownFrameworkByNameNotFound(t *testing.T) {
 func fakeMesos(handler func(w http.ResponseWriter, r *http.Request)) (*httptest.Server, *Mesos) {
 	ts := httptest.NewServer(http.HandlerFunc(handler))
 
-	url, _ := url.Parse(ts.URL)
-	mesos := NewMesos(url.Host, url.Scheme, "", "", false)
+	mesos, _ := NewMesos(ts.URL, "", "", false)
 	return ts, mesos
 }
 

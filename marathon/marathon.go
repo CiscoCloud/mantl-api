@@ -95,16 +95,16 @@ type AppResponse struct {
 	Apps []*App `json:"apps"`
 }
 
-func NewMarathon(location, protocol string, username string, password string, noVerifySsl bool) *Marathon {
-	return &Marathon{
-		httpClient: &http.HttpClient{
-			Location:    location,
-			Protocol:    protocol,
-			Username:    username,
-			Password:    password,
-			NoVerifySsl: noVerifySsl,
-		},
+func NewMarathon(url string, username string, password string, noVerifySsl bool) (*Marathon, error) {
+	httpClient, err := http.NewHttpClient(url, username, password, noVerifySsl)
+
+	if err != nil {
+		return nil, err
 	}
+
+	return &Marathon{
+		httpClient: httpClient,
+	}, nil
 }
 
 func (m Marathon) ToApp(appJson string) (*App, error) {

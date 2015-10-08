@@ -26,18 +26,18 @@ type State struct {
 	UnregisteredFrameworks []*Framework `json:"unregistered_frameworks"`
 }
 
-func NewMesos(location, protocol string, principal string, secret string, noVerifySsl bool) *Mesos {
-	return &Mesos{
-		Principal: principal,
-		Secret:    secret,
-		httpClient: &http.HttpClient{
-			Location:    location,
-			Protocol:    protocol,
-			Username:    principal,
-			Password:    secret,
-			NoVerifySsl: noVerifySsl,
-		},
+func NewMesos(url string, principal string, secret string, noVerifySsl bool) (*Mesos, error) {
+	httpClient, err := http.NewHttpClient(url, principal, secret, noVerifySsl)
+
+	if err != nil {
+		return nil, err
 	}
+
+	return &Mesos{
+		Principal:  principal,
+		Secret:     secret,
+		httpClient: httpClient,
+	}, nil
 }
 
 func (m Mesos) Frameworks() ([]*Framework, error) {

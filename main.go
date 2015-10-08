@@ -5,13 +5,13 @@ import (
 	"github.com/CiscoCloud/mantl-api/install"
 	"github.com/CiscoCloud/mantl-api/marathon"
 	"github.com/CiscoCloud/mantl-api/mesos"
+	"github.com/CiscoCloud/mantl-api/utils/http"
 	"github.com/CiscoCloud/mantl-api/zookeeper"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"net/url"
 	"strings"
 )
 
@@ -72,23 +72,25 @@ func main() {
 func start() {
 	client := consulClient()
 
-	scheme, address := parseMarathonAddress(viper.GetString("marathon"))
-	marathonClient := marathon.NewMarathon(
-		address,
-		scheme,
+	marathonClient, err := marathon.NewMarathon(
+		viper.GetString("marathon"),
 		viper.GetString("marathon-user"),
 		viper.GetString("marathon-password"),
 		viper.GetBool("marathon-no-verify-ssl"),
 	)
+	if err != nil {
+		log.Fatalf("Could not create marathon client: %v", err)
+	}
 
-	scheme, address = parseMesosAddress(viper.GetString("mesos"))
-	mesosClient := mesos.NewMesos(
-		address,
-		scheme,
+	mesosClient, err := mesos.NewMesos(
+		viper.GetString("mesos"),
 		viper.GetString("mesos-principal"),
 		viper.GetString("mesos-secret"),
 		viper.GetBool("mesos-no-verify-ssl"),
 	)
+	if err != nil {
+		log.Fatalf("Could not create mesos client: %v", err)
+	}
 
 	zkServers := strings.Split(viper.GetString("zookeeper"), ",")
 	zk := zookeeper.NewZookeeper(zkServers)
@@ -104,7 +106,10 @@ func start() {
 
 func consulClient() *consul.Client {
 	consulConfig := consul.DefaultConfig()
-	scheme, address := parseConsulAddress(viper.GetString("consul"))
+	scheme, address, err := http.ParseUrl(viper.GetString("consul"))
+	if err != nil {
+		log.Fatalf("Could not create consul client: %v", err)
+	}
 	consulConfig.Scheme = scheme
 	consulConfig.Address = address
 
@@ -152,41 +157,6 @@ func sync(inst *install.Install, force bool) {
 	}
 
 	inst.SyncSources(sources, force)
-}
-
-func parseConsulAddress(u string) (scheme string, host string) {
-	return parseAddress(u, "http", "localhost:8500")
-}
-
-func parseMarathonAddress(u string) (scheme string, host string) {
-	return parseAddress(u, "http", "localhost:8080")
-}
-
-func parseMesosAddress(u string) (scheme string, host string) {
-	return parseAddress(u, "http", "localhost:5050")
-}
-
-func parseAddress(u string, defaultScheme string, defaultHost string) (scheme string, host string) {
-	url, err := url.Parse(u)
-	if err != nil {
-		log.Fatalf("Could not parse address %s: %v", u, err)
-		return "", ""
-	}
-
-	scheme = url.Scheme
-	host = url.Host
-
-	if scheme == "" {
-		log.Warnf("Could not parse scheme. Using '%s'", defaultScheme)
-		scheme = defaultScheme
-	}
-
-	if host == "" {
-		log.Warnf("Could not parse host. Using '%s'", defaultHost)
-		host = defaultHost
-	}
-
-	return scheme, host
 }
 
 func setupLogging() {

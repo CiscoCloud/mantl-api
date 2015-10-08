@@ -3,11 +3,13 @@ package http
 import (
 	"bytes"
 	"crypto/tls"
+	"fmt"
 	log "github.com/Sirupsen/logrus"
 	"io"
 	"io/ioutil"
 	h "net/http"
 	"net/url"
+	"strings"
 )
 
 type HttpClient struct {
@@ -25,8 +27,25 @@ type HttpRequest struct {
 	ResponseBody []byte
 }
 
-func NewHttpClient(location string, protocol string, user string, pw string, noVerifySsl bool) *HttpClient {
-	return &HttpClient{location, protocol, user, pw, noVerifySsl}
+func ParseUrl(u string) (scheme string, host string, err error) {
+	if !strings.HasPrefix(u, "http") {
+		u = fmt.Sprintf("http://%s", u)
+	}
+
+	url, err := url.Parse(u)
+	if err != nil {
+		return "", "", err
+	}
+
+	return url.Scheme, url.Host, nil
+}
+
+func NewHttpClient(url string, user string, pw string, noVerifySsl bool) (*HttpClient, error) {
+	protocol, location, err := ParseUrl(url)
+	if err != nil {
+		return nil, err
+	}
+	return &HttpClient{location, protocol, user, pw, noVerifySsl}, nil
 }
 
 func (c HttpClient) Get(url string) (*HttpRequest, error) {

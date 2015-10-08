@@ -5,7 +5,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"net/http"
 	"net/http/httptest"
-	"net/url"
 	"testing"
 )
 
@@ -252,8 +251,7 @@ func TestDestroyAppError(t *testing.T) {
 
 func fakeMarathon(handler func(w http.ResponseWriter, r *http.Request)) (*httptest.Server, *Marathon) {
 	ts := httptest.NewServer(http.HandlerFunc(handler))
-	url, _ := url.Parse(ts.URL)
-	marathon := NewMarathon(url.Host, url.Scheme, "", "", false)
+	marathon, _ := NewMarathon(ts.URL, "", "", false)
 	return ts, marathon
 }
 
