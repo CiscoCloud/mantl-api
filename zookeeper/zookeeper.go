@@ -34,17 +34,22 @@ func (z *Zookeeper) connect() (*zk.Conn, error) {
 func (z *Zookeeper) deleteTree(conn *zk.Conn, keyPath string) error {
 	result, err := z.znodeTree(conn, keyPath, "")
 	if err != nil {
-		log.Fatal(err)
+		log.Errorf("Could not retrieve znode tree: %v", err)
+		return err
 	}
 
 	for i := len(result) - 1; i >= 0; i-- {
 		znode := keyPath + "/" + result[i]
 		if err = z.deleteNode(conn, znode); err != nil {
-			log.Fatal(err)
+			log.Warnf("Could not delete %s from zookeeper: %v", znode, err)
 		}
 	}
 
-	return z.deleteNode(conn, keyPath)
+	err = z.deleteNode(conn, keyPath)
+	if err != nil {
+		log.Warnf("Could not delete %s from zookeeper: %v", keyPath, err)
+	}
+	return err
 }
 
 func (z *Zookeeper) znodeTree(conn *zk.Conn, keyPath string, nextKeyPath string) ([]string, error) {
