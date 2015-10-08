@@ -38,7 +38,7 @@ func start() {
 	}
 
 	scheme, address = parseMarathonAddress(viper.GetString("marathon"))
-	marathonClient, err := marathon.NewMarathon(
+	marathonClient := marathon.NewMarathon(
 		address,
 		scheme,
 		viper.GetString("marathon-user"),
