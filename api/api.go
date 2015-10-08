@@ -22,6 +22,8 @@ func NewApi(listen string, install *install.Install) *Api {
 
 func (api *Api) Start() {
 	router := httprouter.New()
+	router.GET("/health", api.health)
+
 	router.GET("/1/packages", api.packages)
 	router.POST("/1/packages", api.installPackage)
 	router.GET("/1/packages/:name", api.describePackage)
@@ -29,6 +31,11 @@ func (api *Api) Start() {
 
 	log.WithField("port", api.listen).Info("Starting listener")
 	log.Fatal(http.ListenAndServe(api.listen, router))
+}
+
+func (api *Api) health(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	w.WriteHeader(200)
+	fmt.Fprintf(w, "OK")
 }
 
 func (api *Api) packages(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
