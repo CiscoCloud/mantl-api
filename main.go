@@ -33,16 +33,16 @@ func main() {
 	rootCmd.PersistentFlags().String("log-level", "info", "one of debug, info, warn, error, or fatal")
 	rootCmd.PersistentFlags().String("log-format", "text", "specify output (text or json)")
 	rootCmd.PersistentFlags().String("consul", "http://localhost:8500", "Consul Api address")
-	rootCmd.PersistentFlags().String("marathon", "http://localhost:8080", "Marathon Api address")
+	rootCmd.PersistentFlags().String("marathon", "", "Marathon Api address")
 	rootCmd.PersistentFlags().String("marathon-user", "", "Marathon Api user")
 	rootCmd.PersistentFlags().String("marathon-password", "", "Marathon Api password")
 	rootCmd.PersistentFlags().Bool("marathon-no-verify-ssl", false, "Marathon SSL verification")
-	rootCmd.PersistentFlags().String("mesos", "http://localhost:5050", "Mesos Api address")
+	rootCmd.PersistentFlags().String("mesos", "", "Mesos Api address")
 	rootCmd.PersistentFlags().String("mesos-principal", "", "Mesos principal for framework authentication")
 	rootCmd.PersistentFlags().String("mesos-secret", "", "Mesos secret for framework authentication")
 	rootCmd.PersistentFlags().Bool("mesos-no-verify-ssl", false, "Mesos SSL verification")
 	rootCmd.PersistentFlags().String("listen", ":4001", "mantl-api listen address")
-	rootCmd.PersistentFlags().String("zookeeper", "localhost:2181", "Comma-delimited list of zookeeper servers")
+	rootCmd.PersistentFlags().String("zookeeper", "", "Comma-delimited list of zookeeper servers")
 	rootCmd.PersistentFlags().Bool("force-sync", false, "Force a synchronization of all sources")
 
 	for _, flags := range []*pflag.FlagSet{rootCmd.PersistentFlags()} {
@@ -72,8 +72,12 @@ func main() {
 func start() {
 	client := consulClient()
 
+	marathonUrl := viper.GetString("marathon")
+	if marathonUrl == "" {
+		marathonUrl = NewDiscovery(client, "marathon", "", "http", marathonUrl).discoveredUrl
+	}
 	marathonClient, err := marathon.NewMarathon(
-		viper.GetString("marathon"),
+		marathonUrl,
 		viper.GetString("marathon-user"),
 		viper.GetString("marathon-password"),
 		viper.GetBool("marathon-no-verify-ssl"),
@@ -82,8 +86,12 @@ func start() {
 		log.Fatalf("Could not create marathon client: %v", err)
 	}
 
+	mesosUrl := viper.GetString("mesos")
+	if mesosUrl == "" {
+		mesosUrl = NewDiscovery(client, "mesos", "leader", "http", "http://localhost:5050").discoveredUrl
+	}
 	mesosClient, err := mesos.NewMesos(
-		viper.GetString("mesos"),
+		mesosUrl,
 		viper.GetString("mesos-principal"),
 		viper.GetString("mesos-secret"),
 		viper.GetBool("mesos-no-verify-ssl"),
@@ -92,7 +100,11 @@ func start() {
 		log.Fatalf("Could not create mesos client: %v", err)
 	}
 
-	zkServers := strings.Split(viper.GetString("zookeeper"), ",")
+	zkUrls := viper.GetString("zookeeper")
+	if zkUrls == "" {
+		zkUrls = NewDiscovery(client, "zookeeper", "", "", "localhost:2181").discoveredUrl
+	}
+	zkServers := strings.Split(zkUrls, ",")
 	zk := zookeeper.NewZookeeper(zkServers)
 
 	inst := install.NewInstall(client, marathonClient, mesosClient, zk)
