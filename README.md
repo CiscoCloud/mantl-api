@@ -1,6 +1,6 @@
 # Mantl API
 
-An API interface to [Mantl](http://mantl.io).
+An API interface to [Mantl](https://mantl.io).
 
 Currently, Mantl API allows you to install and uninstall [DCOS packages](https://github.com/mesosphere/universe) on Mantl. More capabilities are planned for the future.
 
@@ -91,7 +91,7 @@ After a few moments, Mantl API should be running on your cluster.
 
 ## Package Repository
 
-[mantl-universe](https://github.com/ciscocloud/mantl-universe) contains the list of packages that work out-of-the-box on Mantl today. You can install any of the [DCOS pacakges](https://github.com/mesosphere/universe) but you will likely have to customize some of the configuration to work on Mantl. Most of the packages assume that [Mesos-DNS](https://github.com/mesosphere/mesos-dns) and need to be converted to work with [Consul DNS](https://www.consul.io/docs/agent/dns.html) interface. Contributions are welcome!
+[mantl-universe](https://github.com/ciscocloud/mantl-universe) contains the list of packages that work out-of-the-box on Mantl today. You can install any of the [DCOS packages](https://github.com/mesosphere/universe) but you will likely have to customize some of the configuration to work on Mantl. Most of the packages assume that service discovery is provided by [Mesos-DNS](https://github.com/mesosphere/mesos-dns) and need to be converted to work with the [Consul DNS](https://www.consul.io/docs/agent/dns.html) interface. Contributions are welcome!
 
 
 ### Synchronizing Repository Sources
@@ -124,7 +124,7 @@ Uninstalling is just as easy. Run the command below to uninstall Cassandra:
 curl -X DELETE http://mantl-worker-003.jossware.org:4001/1/packages/cassandra
 ```
 
-After a moment, Cassandra will have been removed from your cluster. This will also remove the [Zookeeper](https://zookeeper.apache.org) state for the Cassandra framework. In the future, the ability to customize what is uninstalled will be provided.
+After a moment, Cassandra will have been removed from your cluster. This will also remove the [Zookeeper](https://zookeeper.apache.org) state for the Cassandra framework. In the future, we will add more flexibility in being able to control what is uninstalled.
 
 ## Endpoints
 
@@ -136,7 +136,7 @@ After a moment, Cassandra will have been removed from your cluster. This will al
  `/1/packages/:name` | GET    | provides information about a specific package
  `/1/packages/:name` | DELETE | uninstalls a specific package
 
-### /health
+### GET /health
 
 `GET /health`: returns `OK`
 
