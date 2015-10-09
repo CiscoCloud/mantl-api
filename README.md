@@ -1,11 +1,159 @@
-# mantl-api (experimental)
+# Mantl API
 
-## GET /1/packages
+An API interface to [Mantl](http://mantl.io).
+
+Currently, Mantl API allows you to install and uninstall [DCOS packages](https://github.com/mesosphere/universe) on Mantl. More capabilities are planned for the future.
+
+## Comparison to Other Software
+
+Mantl API leverages the [Mesosphere DCOS package repository](https://github.com/mesosphere/universe) and provides capabilities similar to the [`package`](https://docs.mesosphere.com/using/cli/packagesyntax/) command in the [DCOS CLI](https://github.com/mesosphere/dcos-cli). The goal is to provide a simple, API-driven way to install and uninstall pre-built packages on Mantl clusters. In the future, mantl-api will contain additional functionality for maintaining and operating Mantl clusters.
+
+## Building
+
+```shell
+docker build -t mantl-api .
+```
+
+## Deploying
+
+You can run Mantl API on your cluster via Marathon. An example `mantl-api.json` is included below:
+
+```json
+{
+  "id": "/mantl-api",
+  "container": {
+    "type": "DOCKER",
+    "docker": {
+      "image": "CiscoCloud/mantl-api:0.1.0",
+      "network": "BRIDGE",
+      "portMappings": [
+        { "containerPort": 4001, "hostPort": 0 }
+      ],
+    }
+  },
+  "instances": 1,
+  "cpus": 1.0,
+  "mem": 512,
+  "constraints": [["hostname", "UNIQUE"]],
+  "env": {
+    "CONSUL_HTTP_SSL_VERIFY": "false",
+    "MANTL_API_LOG_LEVEL": "debug",
+    "MANTL_API_CONSUL": "https://consul.service.consul:8500",
+    "MANTL_API_MESOS_PRINCIPAL": "mantl-api",
+    "MANTL_API_MESOS_SECRET": "secret"
+  },
+  "healthChecks": [
+    {
+      "protocol": "HTTP",
+      "path": "/health",
+      "gracePeriodSeconds": 3,
+      "intervalSeconds": 10,
+      "portIndex": 0,
+      "timeoutSeconds": 10,
+      "maxConsecutiveFailures": 3
+    }
+  ]
+}
+```
+
+You will need to replace the `MANTL_API_MESOS_PRINCIPAL` and `MANTL_API_MESOS_SECRET` variables with valid Mesos credentials. These can be found in the `security.yml` file that was generated when you ran [security-setup](http://microservices-infrastructure.readthedocs.org/en/latest/security/security_setup.html) for your Mantl cluster.
+
+All Mantl API configuration can be set with environment variables. See below for the additional configuration options that are available.
+
+To install Mantl API, you can submit the above json to Marathon.
+
+```shell
+curl -k -u admin:mantlpw -X POST -d @mantl-api.json -H "Content-type: application/json" https://mantl-control-01/marathon/v2/apps
+```
+
+You will need to replace `admin:mantlpw` with valid Marathon credentials (see `marathon_http_credentials` in your `security.yml`). You will also replace `mantl-control-01` with the host of one your Mantl control nodes.
+
+After a few moments, Mantl API should be running on your cluster.
+
+### Options
+
+ Argument                 | Default                                                                   | Description
+--------------------------|---------------------------------------------------------------------------|---------------------------------------------------------------
+ `log-level`              | info                                                                      | one of debug, info, warn, error, or fatal
+ `log-format`             | text                                                                      | specify output (text or json)
+ `consul`                 | http://localhost:8500                                                     | Consul API address
+ `marathon`               | Discovered via a `marathon` service registered in Consul                  | Marathon API address
+ `marathon-user`          | None                                                                      | Marathon API user
+ `marathon-password`      | None                                                                      | Marathon API password
+ `marathon-no-verify-ssl` | False                                                                     | When True, disables SSL verification for the Marathon API
+ `mesos`                  | Discovered via a `mesos` service with a `leader` tag registered in Consul | Mesos API address
+ `mesos-principal`        | None                                                                      | Mesos principal for framework authentication
+ `mesos-secret`           | None                                                                      | Mesos secret for framework authentication
+ `mesos-no-verify-ssl`    | False                                                                     | When True, disables SSL verification for the Mesos API
+ `listen`                 | :4001                                                                     | Listen for connections at this address
+ `zookeeper`              | Discovered via a `marathon` service registered in Consul                  | Comma-delimited list of zookeeper servers
+ `force-sync`             | False                                                                     | Forces a synchronization of all repository sources at startup
+
+## Package Repository
+
+[mantl-universe](https://github.com/ciscocloud/mantl-universe) contains the list of packages that work out-of-the-box on Mantl today. You can install any of the [DCOS pacakges](https://github.com/mesosphere/universe) but you will likely have to customize some of the configuration to work on Mantl. Most of the packages assume that [Mesos-DNS](https://github.com/mesosphere/mesos-dns) and need to be converted to work with [Consul DNS](https://www.consul.io/docs/agent/dns.html) interface. Contributions are welcome!
+
+
+### Synchronizing Repository Sources
+
+The package repositories are synchronized to the Consul K/V backend. If you want to refresh your repositories, you can run the following command:
+
+```shell
+mantl-api sync --consul http://consul.service.consul:8500
+```
+
+## Usage
+
+### Installing a Package
+
+It is a single API call to install a package. In the example below, we are going to run [Cassandra](http://cassandra.apache.org) on our Mantl cluster.
+
+```shell
+curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-worker-003:4001/1/packages
+```
+
+You will need to replace `mantl-worker-003` and `4001` with the host and port where Mantl API is running. You can use the Marathon API or UI to find this. You'll also need to make sure that the port is accessible to the machine where you are calling the API from. Adjust the security groups or firewall rules for your platform accordingly.
+
+After about 5 minutes, you should have Cassandra up and running on your Mantl cluster.
+
+### Uninstalling a Package
+
+Uninstalling is just as easy. Run the command below to uninstall Cassandra:
+
+```shell
+curl -X DELETE http://mantl-worker-003.jossware.org:4001/1/packages/cassandra
+```
+
+After a moment, Cassandra will have been removed from your cluster. This will also remove the [Zookeeper](https://zookeeper.apache.org) state for the Cassandra framework. In the future, the ability to customize what is uninstalled will be provided.
+
+## Endpoints
+
+ Endpoint            | Method | Description
+---------------------|--------|-----------------------------------------------------
+ `/health`           | GET    | health check - returns `OK` with an HTTP 200 status
+ `/1/packages`       | GET    | list available packages
+ `/1/packages`       | POST   | install a package
+ `/1/packages/:name` | GET    | provides information about a specific package
+ `/1/packages/:name` | DELETE | uninstalls a specific package
+
+### /health
+
+`GET /health`: returns `OK`
+
+```shell
+curl http://mantl-worker-003:4001/health
+```
+
+```
+OK
+```
+
+### GET /1/packages
 
 `GET /1/packages`: returns a JSON representation of packages available to install.
 
 ```shell
-curl http://gce-control-01:4001/1/packages | jq .
+curl http://mantl-control-01:4001/1/packages | jq .
 ```
 
 ```json
@@ -63,7 +211,7 @@ curl http://gce-control-01:4001/1/packages | jq .
 `GET /1/packages/<package>`: returns a JSON representation of a package.
 
 ```shell
-curl http://gce-control-01:4001/1/packages/cassandra | jq .
+curl http://mantl-worker-001:4001/1/packages/cassandra | jq .
 ```
 
 ```json
@@ -99,7 +247,7 @@ curl http://gce-control-01:4001/1/packages/cassandra | jq .
 `POST /1/packages`: post a JSON representation of a package to install.
 
 ```shell
-curl -X POST -d "{\"name\": \"cassandra\"}" http://gce-control-01:4001/1/packages | jq .
+curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-worker-001:4001/1/packages | jq .
 ```
 
 ```json
@@ -206,5 +354,9 @@ curl -X POST -d "{\"name\": \"cassandra\"}" http://gce-control-01:4001/1/package
 `DELETE /1/packages/<package>`: post a JSON representation of package specific uninstall options.
 
 ```shell
-curl -X DELETE -d "{\"name\": \"cassandra\"}" http://gce-control-01:4001/1/packages/cassandra
+curl -X DELETE -d "{\"name\": \"cassandra\"}" http://mantl-worker-001:4001/1/packages/cassandra
 ```
+
+## License
+
+mantl-api is released under the Apache 2.0 license (see [LICENSE](LICENSE))
