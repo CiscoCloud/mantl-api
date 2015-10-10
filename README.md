@@ -1,3 +1,9 @@
+# Mantl API
+
+An API interface to [Mantl](https://mantl.io).
+
+Currently, Mantl API allows you to install and uninstall [DCOS packages](https://github.com/mesosphere/universe) on Mantl. More capabilities are planned for the future.
+
 <!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
 **Table of Contents**
 
@@ -20,12 +26,6 @@
     - [License](#license)
 
 <!-- markdown-toc end -->
-# Mantl API
-
-An API interface to [Mantl](https://mantl.io).
-
-Currently, Mantl API allows you to install and uninstall [DCOS packages](https://github.com/mesosphere/universe) on Mantl. More capabilities are planned for the future.
-
 
 ## Comparison to Other Software
 
