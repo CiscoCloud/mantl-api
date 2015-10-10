@@ -1,8 +1,31 @@
+<!-- markdown-toc start - Don't edit this section. Run M-x markdown-toc-generate-toc again -->
+**Table of Contents**
+
+- [Mantl API](#mantl-api)
+    - [Comparison to Other Software](#comparison-to-other-software)
+    - [Building](#building)
+    - [Deploying](#deploying)
+        - [Options](#options)
+    - [Package Repository](#package-repository)
+        - [Synchronizing Repository Sources](#synchronizing-repository-sources)
+    - [Usage](#usage)
+        - [Installing a Package](#installing-a-package)
+        - [Uninstalling a Package](#uninstalling-a-package)
+    - [Endpoints](#endpoints)
+        - [GET /health](#get-health)
+        - [GET /1/packages](#get-1packages)
+        - [GET /1/packages/<package>](#get-1packagespackage)
+        - [POST /1/packages](#post-1packages)
+        - [DELETE /1/packages/<package>](#delete-1packagespackage)
+    - [License](#license)
+
+<!-- markdown-toc end -->
 # Mantl API
 
 An API interface to [Mantl](https://mantl.io).
 
 Currently, Mantl API allows you to install and uninstall [DCOS packages](https://github.com/mesosphere/universe) on Mantl. More capabilities are planned for the future.
+
 
 ## Comparison to Other Software
 
@@ -242,7 +265,7 @@ curl http://mantl-worker-001:4001/1/packages/cassandra | jq .
 }
 ```
 
-## POST /1/packages
+### POST /1/packages
 
 `POST /1/packages`: post a JSON representation of a package to install.
 
@@ -349,7 +372,7 @@ curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-worker-001:4001/1/packa
 }
 ```
 
-## DELETE /1/packages/<package>
+### DELETE /1/packages/<package>
 
 `DELETE /1/packages/<package>`: post a JSON representation of package specific uninstall options.
 
