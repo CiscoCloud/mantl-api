@@ -112,6 +112,8 @@ After a few moments, Mantl API should be running on your cluster.
  `zookeeper`              | Discovered via a `marathon` service registered in Consul                  | Comma-delimited list of zookeeper servers
  `force-sync`             | False                                                                     | Forces a synchronization of all repository sources at startup
 
+Every option can be set via environment variables prefixed with `MANTL_API`. For example, you can use `MANTL_API_LOG_LEVEL` for `log-level`, `MANTL_API_CONSUL` for `consul`, and so on.
+
 ## Package Repository
 
 [mantl-universe](https://github.com/ciscocloud/mantl-universe) contains the list of packages that work out-of-the-box on Mantl today. You can install any of the [DCOS packages](https://github.com/mesosphere/universe) but you will likely have to customize some of the configuration to work on Mantl. Most of the packages assume that service discovery is provided by [Mesos-DNS](https://github.com/mesosphere/mesos-dns) and need to be converted to work with the [Consul DNS](https://www.consul.io/docs/agent/dns.html) interface. Contributions are welcome!

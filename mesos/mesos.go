@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/CiscoCloud/mantl-api/utils/http"
 	log "github.com/Sirupsen/logrus"
+	"strconv"
 )
 
 type Mesos struct {
@@ -24,6 +25,12 @@ type State struct {
 	CompletedFrameworks    []*Framework `json:"completed_frameworks"`
 	Frameworks             []*Framework `json:"frameworks"`
 	UnregisteredFrameworks []*Framework `json:"unregistered_frameworks"`
+	Flags                  Flags        `json:"flags"`
+}
+
+type Flags struct {
+	Authenticate       string `json:"authenticate"`
+	AuthenticateSlaves string `json:"authenticate_slaves"`
 }
 
 func NewMesos(url string, principal string, secret string, noVerifySsl bool) (*Mesos, error) {
@@ -117,6 +124,20 @@ func (m Mesos) FindFramework(name string) (*Framework, error) {
 	}
 
 	return fws[0], nil
+}
+
+func (m Mesos) RequiresAuthentication() (bool, error) {
+	state, err := m.state()
+	if err != nil {
+		return false, err
+	}
+
+	b, err := strconv.ParseBool(state.Flags.Authenticate)
+	if err != nil {
+		return false, err
+	}
+
+	return b, nil
 }
 
 func (m Mesos) state() (*State, error) {

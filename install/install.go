@@ -50,11 +50,17 @@ func (install *Install) LayerRepositories() (RepositoryCollection, error) {
 }
 
 func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
+	mesosAuthRequired, err := install.mesos.RequiresAuthentication()
+	if err != nil {
+		return "", err
+	}
+
 	apiConfig := map[string]interface{}{
 		"mantl": map[string]interface{}{
 			"mesos": map[string]interface{}{
-				"principal": install.mesos.Principal,
-				"secret":    install.mesos.Secret,
+				"principal":              install.mesos.Principal,
+				"secret":                 install.mesos.Secret,
+				"authentication-enabled": mesosAuthRequired,
 			},
 		},
 	}
