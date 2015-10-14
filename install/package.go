@@ -88,7 +88,7 @@ func (p Package) HasSupportedVersion() bool {
 	return len(p.SupportedVersions()) > 0
 }
 
-func (p Package) FindPackageVersion(version string) *PackageVersion {
+func (p Package) GetPackageVersion(version string) *PackageVersion {
 	for _, v := range p.PackageVersions() {
 		if strings.EqualFold(v.Version, strings.TrimSpace(version)) {
 			return v
@@ -105,6 +105,34 @@ func (p Package) FindLatestPackageVersion() *PackageVersion {
 	} else {
 		return nil
 	}
+}
+
+func (p Package) FindLatestSupportedPackageVersion() *PackageVersion {
+	versions := p.PackageVersions()
+	sort.Sort(packageVersionByMostRecent(versions))
+
+	for _, v := range versions {
+		if v.Supported {
+			return v
+		}
+	}
+
+	return nil
+}
+
+func (p Package) FindPackageVersion(version string) *PackageVersion {
+	pkgVer := p.GetPackageVersion(version)
+	if pkgVer == nil {
+		pkgVer = p.GetPackageVersion(p.CurrentVersion)
+		if pkgVer == nil {
+			pkgVer = p.FindLatestSupportedPackageVersion()
+			if pkgVer == nil {
+				pkgVer = p.FindLatestPackageVersion()
+			}
+		}
+	}
+
+	return pkgVer
 }
 
 type PackageCollection []*Package
@@ -354,10 +382,6 @@ func (install *Install) GetPackageDefinition(name string, version string, userCo
 	}
 
 	pkgVersion := pkg.FindPackageVersion(version)
-	if pkgVersion == nil {
-		pkgVersion = pkg.FindLatestPackageVersion()
-	}
-
 	if pkgVersion == nil {
 		return nil, errors.New(fmt.Sprintf("Could not find installable version for %s", name))
 	}

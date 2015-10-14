@@ -332,6 +332,84 @@ func TestPackageVersionByMostRecent(t *testing.T) {
 	assert.Equal(t, []string{"3", "2", "1", "0"}, idxs)
 }
 
+func TestFindLatestPackageVersion(t *testing.T) {
+	t.Parallel()
+	pkgVers := []*PackageVersion{
+		{Version: "1.0", Index: "1"},
+		{Version: "0.9", Index: "0"},
+		{Version: "1.2", Index: "3"},
+		{Version: "1.1", Index: "2"},
+	}
+	pkg := buildPackage(pkgVers, "")
+	pkgVersion := pkg.FindLatestPackageVersion()
+	assert.Equal(t, "1.2", pkgVersion.Version)
+}
+
+func TestFindLatestSupportedPackageVersion(t *testing.T) {
+	t.Parallel()
+	pkgVers := []*PackageVersion{
+		{Version: "1.0", Index: "1", Supported: true},
+		{Version: "0.9", Index: "0", Supported: true},
+		{Version: "1.2", Index: "3", Supported: false},
+		{Version: "1.1", Index: "2", Supported: true},
+	}
+	pkg := buildPackage(pkgVers, "")
+	pkgVersion := pkg.FindLatestSupportedPackageVersion()
+	assert.Equal(t, "1.1", pkgVersion.Version)
+}
+
+func TestFindPackageVersionExpectSpecified(t *testing.T) {
+	t.Parallel()
+	pkgVers := []*PackageVersion{
+		{Version: "1.0", Index: "1", Supported: true},
+		{Version: "0.9", Index: "0", Supported: true},
+		{Version: "1.2", Index: "3", Supported: false},
+		{Version: "1.1", Index: "2", Supported: true},
+	}
+	pkg := buildPackage(pkgVers, "1.0")
+	pkgVer := pkg.FindPackageVersion("")
+	assert.Equal(t, "1.0", pkgVer.Version)
+}
+
+func TestFindPackageVersionExpectCurrentVersion(t *testing.T) {
+	t.Parallel()
+	pkgVers := []*PackageVersion{
+		{Version: "1.0", Index: "1", Supported: true},
+		{Version: "0.9", Index: "0", Supported: true},
+		{Version: "1.2", Index: "3", Supported: false},
+		{Version: "1.1", Index: "2", Supported: true},
+	}
+	pkg := buildPackage(pkgVers, "0.9")
+	pkgVer := pkg.FindPackageVersion("")
+	assert.Equal(t, "0.9", pkgVer.Version)
+}
+
+func TestFindPackageVersionExpectLatestSupported(t *testing.T) {
+	t.Parallel()
+	pkgVers := []*PackageVersion{
+		{Version: "1.0", Index: "1", Supported: true},
+		{Version: "0.9", Index: "0", Supported: true},
+		{Version: "1.2", Index: "3", Supported: false},
+		{Version: "1.1", Index: "2", Supported: true},
+	}
+	pkg := buildPackage(pkgVers, "")
+	pkgVer := pkg.FindPackageVersion("")
+	assert.Equal(t, "1.1", pkgVer.Version)
+}
+
+func TestFindPackageVersionExpectLatest(t *testing.T) {
+	t.Parallel()
+	pkgVers := []*PackageVersion{
+		{Version: "1.0", Index: "1", Supported: false},
+		{Version: "0.9", Index: "0", Supported: false},
+		{Version: "1.2", Index: "3", Supported: false},
+		{Version: "1.1", Index: "2", Supported: false},
+	}
+	pkg := buildPackage(pkgVers, "")
+	pkgVer := pkg.FindPackageVersion("")
+	assert.Equal(t, "1.2", pkgVer.Version)
+}
+
 func TestValidPackageDefinition(t *testing.T) {
 	t.Parallel()
 	pkgDef := &packageDefinition{
@@ -418,4 +496,22 @@ func TestUserConfig(t *testing.T) {
 
 	merged, _ := pkgDef.MergedConfig()
 	assert.Equal(t, "my-dcos", getConfigVal(merged, "cassandra", "cluster-name"))
+}
+
+func buildPackage(pkgVers []*PackageVersion, currentVersion string) *Package {
+	versions := make(map[string]*PackageVersion, len(pkgVers))
+	for _, pv := range pkgVers {
+		versions[pv.Version] = pv
+	}
+
+	pkg := &Package{
+		Name:     "test",
+		Versions: versions,
+	}
+
+	if currentVersion != "" {
+		pkg.CurrentVersion = currentVersion
+	}
+
+	return pkg
 }
