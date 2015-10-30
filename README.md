@@ -51,7 +51,7 @@ You can run Mantl API on your cluster via Marathon. An example `mantl-api.json` 
       "network": "BRIDGE",
       "portMappings": [
         { "containerPort": 4001, "hostPort": 0 }
-      ],
+      ]
     }
   },
   "instances": 1,
