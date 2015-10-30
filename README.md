@@ -47,11 +47,11 @@ You can run Mantl API on your cluster via Marathon. An example `mantl-api.json` 
   "container": {
     "type": "DOCKER",
     "docker": {
-      "image": "CiscoCloud/mantl-api:0.1.0",
+      "image": "ciscocloud/mantl-api:0.1.0",
       "network": "BRIDGE",
       "portMappings": [
         { "containerPort": 4001, "hostPort": 0 }
-      ],
+      ]
     }
   },
   "instances": 1,
