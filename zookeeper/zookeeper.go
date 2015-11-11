@@ -5,6 +5,7 @@ import (
 	"github.com/samuel/go-zookeeper/zk"
 	"path"
 	"sort"
+	"strings"
 	"time"
 )
 
@@ -22,6 +23,8 @@ func (z *Zookeeper) Delete(keyPath string) error {
 		return err
 	}
 	defer conn.Close()
+
+	keyPath = strings.TrimPrefix(keyPath, "zk:")
 
 	return z.deleteTree(conn, keyPath)
 }

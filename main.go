@@ -16,7 +16,7 @@ import (
 )
 
 const Name = "mantl-api"
-const Version = "0.1.0"
+const Version = "0.1.1"
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -107,7 +107,10 @@ func start() {
 	zkServers := strings.Split(zkUrls, ",")
 	zk := zookeeper.NewZookeeper(zkServers)
 
-	inst := install.NewInstall(client, marathonClient, mesosClient, zk)
+	inst, err := install.NewInstall(client, marathonClient, mesosClient, zk)
+	if err != nil {
+		log.Fatalf("Could not create install client: %v", err)
+	}
 
 	// sync sources to consul
 	sync(inst, viper.GetBool("force-sync"))
@@ -148,9 +151,13 @@ func testConsul(client *consul.Client) error {
 }
 
 func sync(inst *install.Install, force bool) {
+	var err error
 	if inst == nil {
 		client := consulClient()
-		inst = install.NewInstall(client, nil, nil, nil)
+		inst, err = install.NewInstall(client, nil, nil, nil)
+		if err != nil {
+			log.Fatalf("Could not create install client: %v", err)
+		}
 	}
 
 	sources := []*install.Source{
