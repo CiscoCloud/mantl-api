@@ -113,7 +113,7 @@ func (install *Install) repositoryName(idx int) (string, error) {
 }
 
 func (install *Install) repositoryIndexes() ([]int, error) {
-	// retrieves repository indexes like mantl-install/repository/0/
+	// retrieves repository indexes like [0, 1, ...] from mantl-install/repository/
 	indexes, _, err := install.kv.Keys(RepositoryRoot+"/", "/", nil)
 	if err != nil {
 		return nil, err

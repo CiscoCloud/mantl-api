@@ -48,6 +48,13 @@ type Package struct {
 	Versions       map[string]*PackageVersion `json:"versions"`
 }
 
+func NewPackage(name string) *Package {
+	return &Package{
+		Name:     name,
+		Versions: make(map[string]*PackageVersion),
+	}
+}
+
 func (p Package) ContainerId() string {
 	return strings.ToUpper(string([]rune(p.Name)[0]))
 }
@@ -341,21 +348,12 @@ func (d packageDefinition) PostUninstall() (*packageUninstall, error) {
 }
 
 func (install *Install) getPackages() (PackageCollection, error) {
-	packageIndexEntries, err := install.packageIndexEntries()
+	catalog, err := NewPackageCatalog(install.kv, RepositoryRoot)
 	if err != nil {
-		log.Errorf("Could not retrieve base package index: %v", err)
 		return nil, err
 	}
 
-	packages := make(PackageCollection, len(packageIndexEntries))
-	for i, entry := range packageIndexEntries {
-		pkg := entry.ToPackage()
-		install.setSupportedVersions(pkg)
-		install.setCurrentVersion(pkg)
-		packages[i] = pkg
-	}
-
-	return packages, nil
+	return catalog.packagesIndex()
 }
 
 func (install *Install) getPackageByName(name string) (*Package, error) {
