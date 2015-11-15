@@ -60,14 +60,6 @@ func (install *Install) Repositories() (RepositoryCollection, error) {
 	return install.getRepositories()
 }
 
-func (install *Install) BaseRepository() (*Repository, error) {
-	return install.getBaseRepository()
-}
-
-func (install *Install) LayerRepositories() (RepositoryCollection, error) {
-	return install.getLayerRepositories()
-}
-
 func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
 	pkgDef, err := install.GetPackageDefinition(pkgReq.Name, pkgReq.Version, pkgReq.Config, apiConfig)
 

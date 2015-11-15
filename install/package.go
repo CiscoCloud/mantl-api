@@ -144,39 +144,6 @@ func (p Package) FindPackageVersion(version string) *PackageVersion {
 
 type PackageCollection []*Package
 
-type packageIndex struct {
-	Packages []packageIndexEntry
-}
-
-type packageIndexEntry struct {
-	CurrentVersion string
-	Description    string
-	Framework      bool
-	Name           string
-	Tags           []string
-	Versions       map[string]string
-}
-
-func (p packageIndexEntry) ToPackage() *Package {
-	pkg := &Package{
-		Name:           p.Name,
-		Description:    p.Description,
-		Framework:      p.Framework,
-		CurrentVersion: p.CurrentVersion,
-		Tags:           p.Tags,
-	}
-
-	pkg.Versions = make(map[string]*PackageVersion)
-	for version, index := range p.Versions {
-		pkg.Versions[version] = &PackageVersion{
-			Version:   version,
-			Index:     index,
-			Supported: false,
-		}
-	}
-	return pkg
-}
-
 type packageConfigGroup struct {
 	Description          string                        `json:"description"`
 	Type                 string                        `json:"type"`
@@ -458,83 +425,6 @@ func (install *Install) getPackageDefinitionFile(name string, key string) []byte
 	}
 
 	return []byte{}
-}
-
-func (install *Install) setSupportedVersions(pkg *Package) {
-	layers, err := install.LayerRepositories()
-	if err != nil {
-		log.Errorf("Could not read layer repositories: %v", err)
-		return
-	}
-
-	for version, pkgVersion := range pkg.Versions {
-		for _, layer := range layers {
-			versionKey := path.Join(
-				layer.PackagesKey(),
-				pkg.PackageVersionKey(pkgVersion.Index),
-				"mantl.json",
-			)
-
-			kp, _, err := install.kv.Get(versionKey, nil)
-			if err != nil {
-				log.Warnf("Could not read %s: %v", versionKey, err)
-			}
-
-			pkgVersion.Supported = kp != nil
-			pkg.Versions[version] = pkgVersion
-		}
-	}
-
-	pkg.Supported = pkg.HasSupportedVersion()
-}
-
-func (install *Install) setCurrentVersion(pkg *Package) {
-	if !pkg.Supported || !pkg.HasSupportedVersion() {
-		// we don't support any version so defer to the base package
-		return
-	}
-
-	if cv, ok := pkg.Versions[pkg.CurrentVersion]; ok {
-		if cv.Supported {
-			// CurrentVersion is supported so we leave it alone
-			return
-		}
-	}
-
-	// CurrentVersion is not supported so we want to set it to the highest supported version
-	versions := pkg.SupportedVersions()
-	sort.Sort(packageVersionByMostRecent(versions))
-	for _, pv := range versions {
-		if pv.Supported {
-			pkg.CurrentVersion = pv.Version
-			break
-		}
-	}
-}
-
-func (install *Install) packageIndexEntries() ([]packageIndexEntry, error) {
-	baseRepo, err := install.BaseRepository()
-	if err != nil || baseRepo == nil {
-		log.Errorf("Could not retrieve base repository: %v", err)
-		return nil, err
-	}
-
-	baseIndex := baseRepo.PackageIndexKey()
-
-	kp, _, err := install.kv.Get(baseIndex, nil)
-	if err != nil || kp == nil {
-		log.Errorf("Could not read %s: %v", baseIndex, err)
-		return nil, err
-	}
-
-	var packageIndex packageIndex
-	err = json.Unmarshal(kp.Value, &packageIndex)
-	if err != nil {
-		log.Errorf("Could not unmarshal index from %s: %v", baseIndex, err)
-		return nil, err
-	}
-
-	return packageIndex.Packages, nil
 }
 
 func transformedConfigValue(val interface{}) interface{} {

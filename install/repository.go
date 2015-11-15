@@ -18,44 +18,12 @@ type Repository struct {
 
 type RepositoryCollection []*Repository
 
-func (c RepositoryCollection) Base() *Repository {
-	for _, repo := range c {
-		if repo.Index == 0 {
-			return repo
-		}
-	}
-	return nil
-}
-
-func (c RepositoryCollection) Layers() RepositoryCollection {
-	var repos RepositoryCollection
-	for _, repo := range c {
-		if repo.IsBase() {
-			continue
-		}
-		repos = append(repos, repo)
-	}
-	return repos
-}
-
-func (r Repository) PackageIndexKey() string {
-	return path.Join(
-		RepositoryRoot,
-		fmt.Sprintf("%d", r.Index),
-		"repo/meta/index.json",
-	)
-}
-
 func (r Repository) PackagesKey() string {
 	return path.Join(
 		RepositoryRoot,
 		fmt.Sprintf("%d", r.Index),
 		"repo/packages",
 	)
-}
-
-func (r Repository) IsBase() bool {
-	return r.Index == 0
 }
 
 func (install *Install) getRepositories() (RepositoryCollection, error) {
@@ -79,26 +47,6 @@ func (install *Install) getRepositories() (RepositoryCollection, error) {
 	}
 
 	return repositories, nil
-}
-
-func (install *Install) getBaseRepository() (*Repository, error) {
-	key := path.Join(RepositoryRoot, "0", "name")
-
-	kp, _, err := install.kv.Get(key, nil)
-	if err != nil || kp == nil {
-		log.Errorf("Could not retrieve base repository from %s: %v", key, err)
-		return nil, err
-	}
-
-	return &Repository{Name: string(kp.Value), Index: 0}, nil
-}
-
-func (install *Install) getLayerRepositories() (RepositoryCollection, error) {
-	repos, err := install.Repositories()
-	if err != nil {
-		return nil, err
-	}
-	return repos.Layers(), nil
 }
 
 func (install *Install) repositoryName(idx int) (string, error) {
