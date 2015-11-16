@@ -17,6 +17,8 @@ const packageIsFrameworkKey = "MANTL_PACKAGE_IS_FRAMEWORK"
 const packageFrameworkNameKey = "MANTL_PACKAGE_FRAMEWORK_NAME"
 const dcosPackageFrameworkNameKey = "DCOS_PACKAGE_FRAMEWORK_NAME"
 
+var apiConfig map[string]interface{}
+
 type Install struct {
 	consul    *consul.Client
 	kv        *consul.KV
@@ -25,8 +27,25 @@ type Install struct {
 	zookeeper *zookeeper.Zookeeper
 }
 
-func NewInstall(consulClient *consul.Client, marathon *marathon.Marathon, mesos *mesos.Mesos, zookeeper *zookeeper.Zookeeper) *Install {
-	return &Install{consulClient, consulClient.KV(), marathon, mesos, zookeeper}
+func NewInstall(consulClient *consul.Client, marathon *marathon.Marathon, mesos *mesos.Mesos, zookeeper *zookeeper.Zookeeper) (*Install, error) {
+	if mesos != nil {
+		mesosAuthRequired, err := mesos.RequiresAuthentication()
+		if err != nil {
+			return nil, err
+		}
+
+		apiConfig = map[string]interface{}{
+			"mantl": map[string]interface{}{
+				"mesos": map[string]interface{}{
+					"principal":              mesos.Principal,
+					"secret":                 mesos.Secret,
+					"authentication-enabled": mesosAuthRequired,
+				},
+			},
+		}
+	}
+
+	return &Install{consulClient, consulClient.KV(), marathon, mesos, zookeeper}, nil
 }
 
 func (install *Install) Packages() (PackageCollection, error) {
@@ -41,30 +60,7 @@ func (install *Install) Repositories() (RepositoryCollection, error) {
 	return install.getRepositories()
 }
 
-func (install *Install) BaseRepository() (*Repository, error) {
-	return install.getBaseRepository()
-}
-
-func (install *Install) LayerRepositories() (RepositoryCollection, error) {
-	return install.getLayerRepositories()
-}
-
 func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
-	mesosAuthRequired, err := install.mesos.RequiresAuthentication()
-	if err != nil {
-		return "", err
-	}
-
-	apiConfig := map[string]interface{}{
-		"mantl": map[string]interface{}{
-			"mesos": map[string]interface{}{
-				"principal":              install.mesos.Principal,
-				"secret":                 install.mesos.Secret,
-				"authentication-enabled": mesosAuthRequired,
-			},
-		},
-	}
-
 	pkgDef, err := install.GetPackageDefinition(pkgReq.Name, pkgReq.Version, pkgReq.Config, apiConfig)
 
 	if err != nil {
@@ -137,7 +133,7 @@ func (install *Install) UninstallPackage(app *marathon.App) error {
 
 	err = install.postUninstall(app)
 	if err != nil {
-		log.Errorf("Failed to run post-uninstall for %s", app.ID)
+		log.Errorf("Failed to run post-uninstall for %s: %v", app.ID, err)
 		return nil
 	}
 
@@ -167,7 +163,7 @@ func (install *Install) SyncSources(sources []*Source, force bool) error {
 func (install *Install) postUninstall(app *marathon.App) error {
 	name := app.Labels[packageNameKey]
 	version := app.Labels[packageVersionKey]
-	pkgDef, err := install.GetPackageDefinition(name, version, nil, nil)
+	pkgDef, err := install.GetPackageDefinition(name, version, nil, apiConfig)
 	if err != nil {
 		log.Errorf("Could not perform post-install for %s. Could not find package definition: %v", name, err)
 		return err
