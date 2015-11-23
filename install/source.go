@@ -99,7 +99,12 @@ func (install *Install) syncGitSource(source *Source) error {
 
 	dest := path.Join(temp, source.Name)
 	log.Debugf("Cloning %s into %s", source.Path, dest)
-	err = exec.Command("git", "clone", source.Path, dest).Run()
+	// only clone a single commit from master, rather than all branches
+	gitArgs := []string{
+		"clone", source.Path, dest,
+		"--branch=master", "--single-branch", "--depth", "1",
+	}
+	err = exec.Command("git", gitArgs...).Run()
 	if err != nil {
 		return err
 	}
