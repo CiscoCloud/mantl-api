@@ -159,7 +159,7 @@ func (g packageConfigGroup) defaultConfig() map[string]interface{} {
 
 	for groupName, group := range g.Properties {
 		if group.Default != nil {
-			defaults[groupName] = transformedConfigValue(group.Default)
+			defaults[groupName] = transformedConfigValue(group.Default, group.Type)
 		} else if group.Type == "object" {
 			defaults[groupName] = group.defaultConfig()
 		}
@@ -427,7 +427,7 @@ func (install *Install) getPackageDefinitionFile(name string, key string) []byte
 	return []byte{}
 }
 
-func transformedConfigValue(val interface{}) interface{} {
+func transformedConfigValue(val interface{}, typ string) interface{} {
 	// TODO: probably should use the config schema for this
 	if slice, ok := val.([]interface{}); ok {
 		// if the config val is an array, convert it to a json representation
@@ -439,7 +439,12 @@ func transformedConfigValue(val interface{}) interface{} {
 			return val
 		}
 	} else {
-		return val
+		switch typ {
+		case "integer":
+			return fmt.Sprintf("%d", int(val.(float64)))
+		default:
+			return val
+		}
 	}
 }
 
@@ -451,7 +456,7 @@ func mergeConfig(config map[string]interface{}, override map[string]interface{})
 		if configExists && configValIsMap && overrideValIsMap {
 			config[k] = mergeConfig(configVal, overrideVal)
 		} else {
-			config[k] = transformedConfigValue(v)
+			config[k] = transformedConfigValue(v, "")
 		}
 	}
 
