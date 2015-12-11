@@ -10,7 +10,6 @@ import (
 	"os/exec"
 	"path"
 	"path/filepath"
-	"strings"
 	"time"
 )
 
@@ -99,32 +98,20 @@ func (install *Install) syncGitSource(source *Source) error {
 
 	dest := path.Join(temp, source.Name)
 	log.Debugf("Cloning %s into %s", source.Path, dest)
-	err = exec.Command("git", "clone", source.Path, dest).Run()
-	if err != nil {
-		return err
+	// only clone a single commit from master, rather than all branches
+	gitArgs := []string{
+		"clone", source.Path, dest,
+		"--single-branch", "--depth", "1",
 	}
 
 	if source.Branch != "" {
-		var branch, remote string
+		gitArgs = append(gitArgs, "--branch", source.Branch)
+	}
 
-		parts := strings.Split(source.Branch, "/")
-		if len(parts) > 1 {
-			remote = parts[0]
-			branch = parts[1]
-		} else {
-			remote = "origin"
-			branch = parts[0]
-		}
-
-		remoteBranch := fmt.Sprintf("%s/%s", remote, branch)
-
-		log.Debugf("Checking out branch %s", remoteBranch)
-		cmd := exec.Command("git", "checkout", "-b", branch, remoteBranch)
-		cmd.Dir = dest
-		err = cmd.Run()
-		if err != nil {
-			return err
-		}
+	log.Debugf("Running git with args: %v", gitArgs)
+	err = exec.Command("git", gitArgs...).Run()
+	if err != nil {
+		return err
 	}
 
 	os.RemoveAll(path.Join(dest, ".git"))

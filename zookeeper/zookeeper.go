@@ -37,7 +37,7 @@ func (z *Zookeeper) connect() (*zk.Conn, error) {
 func (z *Zookeeper) deleteTree(conn *zk.Conn, keyPath string) error {
 	result, err := z.znodeTree(conn, keyPath, "")
 	if err != nil {
-		log.Errorf("Could not retrieve znode tree: %v", err)
+		log.Errorf("Could not retrieve znode tree %s: %v", keyPath, err)
 		return err
 	}
 
