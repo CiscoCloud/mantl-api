@@ -1,5 +1,7 @@
 # Mantl API
 
+[![Build Status](http://drone04.shipped-cisco.com/api/badges/CiscoCloud/mantl-api/status.svg)](http://drone04.shipped-cisco.com/CiscoCloud/mantl-api)
+
 An API interface to [Mantl](https://mantl.io).
 
 Currently, Mantl API allows you to install and uninstall [DCOS packages](https://github.com/mesosphere/universe) on Mantl. More capabilities are planned for the future.
