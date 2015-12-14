@@ -28,6 +28,10 @@ type Source struct {
 	Index      int
 }
 
+func (s Source) IsValid() bool {
+	return (s.Name != "" && s.Path != "")
+}
+
 func (install *Install) syncSource(source *Source) error {
 	switch source.SourceType {
 	case FileSystem:
