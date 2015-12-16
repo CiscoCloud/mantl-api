@@ -33,13 +33,22 @@ Currently, Mantl API allows you to install and uninstall [DCOS packages](https:/
 
 Mantl API leverages the [Mesosphere DCOS package repository](https://github.com/mesosphere/universe) and provides capabilities similar to the [`package`](https://docs.mesosphere.com/using/cli/packagesyntax/) command in the [DCOS CLI](https://github.com/mesosphere/dcos-cli). The goal is to provide a simple, API-driven way to install and uninstall pre-built packages on Mantl clusters. In the future, mantl-api will contain additional functionality for maintaining and operating Mantl clusters.
 
+## Mantl API on Mantl Clusters
+
+As of the [0.5 release](https://github.com/CiscoCloud/microservices-infrastructure/releases/tag/0.5.0), Mantl API is installed by default on Mantl clusters. It is available on control nodes at the `/api` endpoint and, by default, is behind SSL and basic authentication. For example, you could get a list of packages by running a command like the following on a default Mantl install:
+
+
+```shell
+curl -k -u admin:mantlpw https://mantl-control-01/api/1/packages
+```
+
 ## Building
 
 ```shell
 docker build -t mantl-api .
 ```
 
-## Deploying
+## Deploying Manually
 
 You can run Mantl API on your cluster via Marathon. An example `mantl-api.json` is included below:
 
