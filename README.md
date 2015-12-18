@@ -33,13 +33,22 @@ Currently, Mantl API allows you to install and uninstall [DCOS packages](https:/
 
 Mantl API leverages the [Mesosphere DCOS package repository](https://github.com/mesosphere/universe) and provides capabilities similar to the [`package`](https://docs.mesosphere.com/using/cli/packagesyntax/) command in the [DCOS CLI](https://github.com/mesosphere/dcos-cli). The goal is to provide a simple, API-driven way to install and uninstall pre-built packages on Mantl clusters. In the future, mantl-api will contain additional functionality for maintaining and operating Mantl clusters.
 
+## Mantl API on Mantl Clusters
+
+As of the [0.5 release](https://github.com/CiscoCloud/microservices-infrastructure/releases/tag/0.5.0), Mantl API is installed by default on Mantl clusters. It is available on control nodes at the `/api` endpoint and, by default, is behind SSL and basic authentication. For example, you could get a list of packages by running a command like the following on a default Mantl install:
+
+
+```shell
+curl -k -u admin:mantlpw https://mantl-control-01/api/1/packages
+```
+
 ## Building
 
 ```shell
 docker build -t mantl-api .
 ```
 
-## Deploying
+## Deploying Manually
 
 You can run Mantl API on your cluster via Marathon. An example `mantl-api.json` is included below:
 
@@ -120,6 +129,55 @@ Every option can be set via environment variables prefixed with `MANTL_API`. For
 
 [mantl-universe](https://github.com/ciscocloud/mantl-universe) contains the list of packages that work out-of-the-box on Mantl today. You can install any of the [DCOS packages](https://github.com/mesosphere/universe) but you will likely have to customize some of the configuration to work on Mantl. Most of the packages assume that service discovery is provided by [Mesos-DNS](https://github.com/mesosphere/mesos-dns) and need to be converted to work with the [Consul DNS](https://www.consul.io/docs/agent/dns.html) interface. Contributions are welcome!
 
+### Package Repository Structure
+
+Mantl API is compatible with the [package repository structure](https://github.com/mesosphere/universe/#package-entries) created for Mesosphere DCOS packages. Each repository contains a directory structure that looks something like this:
+
+```
+repo/packages
+├── C
+│   ├── cassandra
+│   │   ├── 0
+│   │   │   ├── config.json
+│   │   │   ├── marathon.json
+│   │   │   └── package.json
+│   │   ├── 1
+│   │   │   ├── command.json
+│   │   │   ├── config.json
+│   │   │   ├── marathon.json
+│   │   │   └── package.json
+├── H
+│   └── hdfs
+│       ├── 0
+│       │   ├── command.json
+│       │   ├── config.json
+│       │   ├── marathon.json
+│       │   └── package.json
+│       ├── 1
+│       │   ├── command.json
+│       │   ├── config.json
+│       │   ├── marathon.json
+│       │   └── package.json
+|__ ...
+```
+
+For each named package (*cassandra* and *hdfs* in the example above), there is a directory of JSON files corresponding to each version.
+
+Mantl API supports the ability to layer repositories. Mantl API is configured to use two repository sources by default:
+
+* [Mesosphere Universe](https://github.com/mesosphere/universe)
+* [Mantl Universe](https://github.com/CiscoCloud/mantl-universe)
+
+The order of the repositories is important. By default, Mesosphere Universe is configured with index 0 and Mantl Universe is configured with index 1. In the Consul KV store, the repositories are stored as follows:
+
+ Name                 | Consul KV Path
+----------------------|----------------------------
+ Mesosphere Universe  | mantl-install/repository/0
+ Mantl Universe       | mantl-install/repository/1
+
+Repositories with higher indexes are prioritized. When Mantl API receives a request to install a particular package, it will use the package definition found in the repository with the highest index. If there are any required files missing, it will look for the corresponding package version in the repositories with the lower indexes until it is able to construct a valid, installable package. For example, if `mantl-install/repository/1/repo/packages/H/hdfs/1` (Mantl Universe) exists but does not have a `config.json` file, Mantl API will merge in the `config.json` file from `mantl-install/repository/0/repo/packages/H/hdfs/1` (Mesosphere universe). This enables us to use the existing packages in the Mesosphere Universe without having to recreate everything in the Mantl Universe. Packages in the Mantl Universe repository typically just contain only the changes that are needed to run the package on Mantl clusters.
+
+This also enables users to create their own repository to customize packages for their specific needs.
 
 ### Synchronizing Repository Sources
 
