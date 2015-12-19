@@ -12,11 +12,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
+	"os"
 	"strings"
 )
 
 const Name = "mantl-api"
-const Version = "0.1.2"
+const Version = "0.1.3"
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -26,6 +27,7 @@ func main() {
 			start()
 		},
 		PersistentPreRun: func(cmd *cobra.Command, args []string) {
+			readConfigFile()
 			setupLogging()
 		},
 	}
@@ -44,6 +46,7 @@ func main() {
 	rootCmd.PersistentFlags().String("listen", ":4001", "mantl-api listen address")
 	rootCmd.PersistentFlags().String("zookeeper", "", "Comma-delimited list of zookeeper servers")
 	rootCmd.PersistentFlags().Bool("force-sync", false, "Force a synchronization of all sources")
+	rootCmd.PersistentFlags().String("config-file", "", "The path to a configuration file")
 
 	for _, flags := range []*pflag.FlagSet{rootCmd.PersistentFlags()} {
 		err := viper.BindPFlags(flags)
@@ -160,7 +163,7 @@ func sync(inst *install.Install, force bool) {
 		}
 	}
 
-	sources := []*install.Source{
+	defaultSources := []*install.Source{
 		&install.Source{
 			Name:       "mantl",
 			Path:       "https://github.com/CiscoCloud/mantl-universe.git",
@@ -175,7 +178,62 @@ func sync(inst *install.Install, force bool) {
 		},
 	}
 
+	sources := []*install.Source{}
+
+	configuredSources := viper.GetStringMap("sources")
+
+	if len(configuredSources) > 0 {
+		for name, val := range configuredSources {
+			source := &install.Source{Name: name, SourceType: install.FileSystem}
+			sourceConfig := val.(map[string]interface{})
+
+			if path, ok := sourceConfig["path"].(string); ok {
+				source.Path = path
+			}
+
+			if index, ok := sourceConfig["index"].(int64); ok {
+				source.Index = int(index)
+			}
+
+			if sourceType, ok := sourceConfig["type"].(string); ok {
+				if strings.EqualFold(sourceType, "git") {
+					source.SourceType = install.Git
+				}
+			}
+
+			if branch, ok := sourceConfig["branch"].(string); ok {
+				source.Branch = branch
+			}
+
+			if source.IsValid() {
+				sources = append(sources, source)
+			} else {
+				log.Warnf("Invalid source configuration for %s", name)
+			}
+		}
+	}
+
+	if len(sources) == 0 {
+		sources = defaultSources
+	}
+
 	inst.SyncSources(sources, force)
+}
+
+func readConfigFile() {
+	// read configuration file if specified
+	configFile := viper.GetString("config-file")
+	if configFile != "" {
+		if _, err := os.Stat(configFile); err == nil {
+			viper.SetConfigFile(configFile)
+			err = viper.ReadInConfig()
+			if err != nil {
+				log.Warnf("Could not read configuration file: %v", err)
+			}
+		} else {
+			log.Warnf("Could not find configuration file: %s", configFile)
+		}
+	}
 }
 
 func setupLogging() {
