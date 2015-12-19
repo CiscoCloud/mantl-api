@@ -226,7 +226,7 @@ func readConfigFile() {
 	if configFile != "" {
 		if _, err := os.Stat(configFile); err == nil {
 			viper.SetConfigFile(configFile)
-			viper.ReadInConfig()
+			err = viper.ReadInConfig()
 			if err != nil {
 				log.Warnf("Could not read configuration file: %v", err)
 			}
