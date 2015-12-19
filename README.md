@@ -113,8 +113,9 @@ After a few moments, Mantl API should be running on your cluster.
  `listen`                 | :4001                                                                     | Listen for connections at this address
  `zookeeper`              | Discovered via a `marathon` service registered in Consul                  | Comma-delimited list of zookeeper servers
  `force-sync`             | False                                                                     | Forces a synchronization of all repository sources at startup
+ `config-file`            | None                                                                      | Specifies an optional configuration file
 
-Every option can be set via environment variables prefixed with `MANTL_API`. For example, you can use `MANTL_API_LOG_LEVEL` for `log-level`, `MANTL_API_CONSUL` for `consul`, and so on.
+Every option can be set via environment variables prefixed with `MANTL_API`. For example, you can use `MANTL_API_LOG_LEVEL` for `log-level`, `MANTL_API_CONSUL` for `consul`, and so on. You can also specify all configuration from a [TOML](https://github.com/toml-lang/toml) configuration file using the `config-file` argument.
 
 ## Package Repository
 
@@ -128,6 +129,30 @@ The package repositories are synchronized to the Consul K/V backend. If you want
 ```shell
 mantl-api sync --consul http://consul.service.consul:8500
 ```
+
+### Configuring Sources
+
+If you want to use different source repositories, you can specify a configuration file that contains your source definitions using the `--config-file` argument. Here is an example configuration file that uses 2 sources &mdash; one named "mesosphere" from a git repository and the other named "mantl-universe" from the local file system:
+
+```toml
+[sources]
+
+[sources.mesosphere]
+path = "https://github.com/mesosphere/universe.git"
+type = "git"
+index = 0
+
+[sources.mantl]
+path = "/home/ryan/Projects/mantl-universe"
+index = 1
+```
+
+The following attributes can be specified for each source:
+
+* path
+* type &mdash; git or filesystem (default)
+* index
+* branch &mdash; only applicable for the *git* type
 
 ## Usage
 
