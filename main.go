@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/CiscoCloud/mantl-api/api"
 	"github.com/CiscoCloud/mantl-api/install"
 	"github.com/CiscoCloud/mantl-api/marathon"
@@ -69,10 +70,20 @@ func main() {
 	}
 	rootCmd.AddCommand(syncCommand)
 
+	versionCommand := &cobra.Command{
+		Use:   "version",
+		Short: fmt.Sprintf("Print the version number of %s", Name),
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("%s v%s\n", Name, Version)
+		},
+	}
+	rootCmd.AddCommand(versionCommand)
+
 	rootCmd.Execute()
 }
 
 func start() {
+	log.Infof("Starting %s v%s", Name, Version)
 	client := consulClient()
 
 	marathonUrl := viper.GetString("marathon")
