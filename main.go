@@ -235,6 +235,7 @@ func readConfigFile() {
 	// read configuration file if specified
 	configFile := viper.GetString("config-file")
 	if configFile != "" {
+		configFile = os.ExpandEnv(configFile)
 		if _, err := os.Stat(configFile); err == nil {
 			viper.SetConfigFile(configFile)
 			err = viper.ReadInConfig()
