@@ -27,7 +27,7 @@ func (api *Api) Start() {
 	router.GET("/1/packages", api.packages)
 	router.POST("/1/packages", api.installPackage)
 	router.GET("/1/packages/:name", api.describePackage)
-	router.DELETE("/1/packages/:name", api.uninstallPackage)
+	router.DELETE("/1/packages", api.uninstallPackage)
 
 	log.WithField("port", api.listen).Info("Starting listener")
 	log.Fatal(http.ListenAndServe(api.listen, router))
@@ -43,12 +43,12 @@ func (api *Api) packages(w http.ResponseWriter, req *http.Request, _ httprouter.
 	packages, err := api.install.Packages()
 
 	if err != nil {
-		api.writeError(w, "Could not retrieve package list", err)
+		api.writeError(w, "Could not retrieve package list", 500, err)
 		return
 	}
 
 	if err = json.NewEncoder(w).Encode(packages); err != nil {
-		api.writeError(w, "Could not retrieve package list", err)
+		api.writeError(w, "Could not retrieve package list", 500, err)
 	}
 }
 
@@ -58,28 +58,28 @@ func (api *Api) describePackage(w http.ResponseWriter, req *http.Request, ps htt
 	name := ps.ByName("name")
 	pkg, err := api.install.Package(name)
 	if err != nil {
-		api.writeError(w, fmt.Sprintf("Could not find package %s", name), err)
+		api.writeError(w, fmt.Sprintf("Package %s not found.", name), 404, err)
 		return
 	}
 
 	if err = json.NewEncoder(w).Encode(pkg); err != nil {
-		api.writeError(w, fmt.Sprintf("Could not encode package %s", name), err)
+		api.writeError(w, fmt.Sprintf("Could not encode package %s", name), 500, err)
 	}
 }
 
-func (api *Api) installPackage(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func (api *Api) installPackage(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	req.Header.Add("Accept", "application/json")
 
-	pkgRequest, err := api.parsePackageRequest(req.Body, "")
+	pkgRequest, err := api.parsePackageRequest(req.Body)
 
 	if err != nil || pkgRequest == nil {
-		api.writeError(w, "Could not parse package request", err)
+		api.writeError(w, "Could not parse package request", 400, err)
 		return
 	}
 
 	marathonResponse, err := api.install.InstallPackage(pkgRequest)
 	if err != nil {
-		api.writeError(w, fmt.Sprintf("Could not install %s package", pkgRequest.Name), err)
+		api.writeError(w, fmt.Sprintf("Could not install %s package", pkgRequest.Name), 500, err)
 		return
 	}
 
@@ -88,40 +88,54 @@ func (api *Api) installPackage(w http.ResponseWriter, req *http.Request, ps http
 	fmt.Fprintf(w, marathonResponse)
 }
 
-func (api *Api) uninstallPackage(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+func (api *Api) uninstallPackage(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
 	req.Header.Add("Accept", "application/json")
 
-	name := ps.ByName("name")
-	pkgRequest, err := api.parsePackageRequest(req.Body, name)
+	pkgRequest, err := api.parsePackageRequest(req.Body)
 
 	if err != nil || pkgRequest == nil {
-		api.writeError(w, "Could not parse package request", err)
+		api.writeError(w, "Could not parse package request", 400, err)
 		return
 	}
 
-	app := api.install.FindInstalled(pkgRequest)
-	if app == nil {
-		w.WriteHeader(404)
-		return
-	}
+	apps, err := api.install.FindInstalled(pkgRequest)
 
-	err = api.install.UninstallPackage(app)
 	if err != nil {
-		api.writeError(w, fmt.Sprintf("Could not uninstall %s package", pkgRequest.Name), err)
+		api.writeError(w, "Could not retrieve installed packages", 500, err)
+		return
+	}
+
+	if len(apps) == 0 {
+		w.WriteHeader(404)
+		if pkgRequest.AppID != "" {
+			fmt.Fprintf(w, "Package %s (%s) not found.\n", pkgRequest.Name, pkgRequest.AppID)
+		} else {
+			fmt.Fprintf(w, "Package %s not found.\n", pkgRequest.Name)
+		}
+		return
+	} else if len(apps) > 1 {
+		w.WriteHeader(409)
+		fmt.Fprintf(w, "There is more than 1 instance of the %s package running. Please include the application id in the request.\n", pkgRequest.Name)
+		return
+	}
+
+	err = api.install.UninstallPackage(apps[0])
+	if err != nil {
+		api.writeError(w, fmt.Sprintf("Could not uninstall %s package", pkgRequest.Name), 500, err)
 		return
 	}
 
 	w.WriteHeader(204)
 }
 
-func (api *Api) writeError(w http.ResponseWriter, msg string, err error) {
-	w.WriteHeader(500)
+func (api *Api) writeError(w http.ResponseWriter, msg string, status int, err error) {
+	w.WriteHeader(status)
 	m := fmt.Sprintf("%s: %v", msg, err)
 	log.Error(m)
 	fmt.Fprintln(w, m)
 }
 
-func (api *Api) parsePackageRequest(r io.Reader, pkgName string) (*install.PackageRequest, error) {
+func (api *Api) parsePackageRequest(r io.Reader) (*install.PackageRequest, error) {
 	body, err := ioutil.ReadAll(r)
 	if err != nil {
 		log.Errorf("Unable to read request body: %v", err)
@@ -131,10 +145,6 @@ func (api *Api) parsePackageRequest(r io.Reader, pkgName string) (*install.Packa
 	pkgRequest, err := install.NewPackageRequest(body)
 	if err != nil {
 		return nil, err
-	}
-
-	if pkgName != "" {
-		pkgRequest.Name = pkgName
 	}
 
 	return pkgRequest, nil

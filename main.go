@@ -135,7 +135,7 @@ func start() {
 
 func consulClient() *consul.Client {
 	consulConfig := consul.DefaultConfig()
-	scheme, address, err := http.ParseUrl(viper.GetString("consul"))
+	scheme, address, _, err := http.ParseUrl(viper.GetString("consul"))
 	if err != nil {
 		log.Fatalf("Could not create consul client: %v", err)
 	}

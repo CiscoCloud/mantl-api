@@ -59,7 +59,7 @@ func (m Mesos) Frameworks() ([]*Framework, error) {
 func (m Mesos) Shutdown(frameworkId string) error {
 	log.Debugf("Shutting down framework: %s", frameworkId)
 	data := fmt.Sprintf("frameworkId=%s", frameworkId)
-	httpReq, err := m.httpClient.Post("/master/teardown", []byte(data))
+	httpReq, err := m.httpClient.Post("/master/teardown/", []byte(data))
 	if err != nil {
 		return err
 	}

@@ -1,6 +1,8 @@
 package install
 
 import (
+	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"github.com/CiscoCloud/mantl-api/marathon"
 	"github.com/CiscoCloud/mantl-api/mesos"
@@ -8,6 +10,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"strconv"
+	"strings"
 )
 
 const packageNameKey = "MANTL_PACKAGE_NAME"
@@ -15,6 +18,7 @@ const packageVersionKey = "MANTL_PACKAGE_VERSION"
 const packageIndexKey = "MANTL_PACKAGE_INDEX"
 const packageIsFrameworkKey = "MANTL_PACKAGE_IS_FRAMEWORK"
 const packageFrameworkNameKey = "MANTL_PACKAGE_FRAMEWORK_NAME"
+const packageUninstallKey = "MANTL_PACKAGE_UNINSTALL"
 const dcosPackageFrameworkNameKey = "DCOS_PACKAGE_FRAMEWORK_NAME"
 
 var apiConfig map[string]interface{}
@@ -80,7 +84,11 @@ func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
 		return "", err
 	}
 
-	addMantlLabels(app, pkgDef)
+	err = addMantlLabels(app, pkgDef)
+	if err != nil {
+		log.Errorf("Could not add labels to marathon json: %v", err)
+		return "", err
+	}
 
 	log.Debugf("Submitting application to marathon: %+v", app)
 
@@ -94,15 +102,20 @@ func (install *Install) InstallPackage(pkgReq *PackageRequest) (string, error) {
 	return response, nil
 }
 
-func (install *Install) FindInstalled(pkgReq *PackageRequest) *marathon.App {
-	// find marathon app by id
-	matching := install.findInstalledApp(pkgReq)
+func (install *Install) FindInstalled(pkgReq *PackageRequest) ([]*marathon.App, error) {
+	installedApps, err := install.installedApps()
 
-	if matching == nil {
-		log.Warnf("Could not find matching package for %s %s", pkgReq.Name, pkgReq.Version)
+	if err != nil {
+		log.Errorf("Could not retrieve applications from marathon: %v", err)
+		return []*marathon.App{}, err
 	}
 
-	return matching
+	matching := filterByPackageName(pkgReq.Name, installedApps)
+	if pkgReq.AppID != "" {
+		matching = filterByID(pkgReq.AppID, matching)
+	}
+
+	return matching, nil
 }
 
 func (install *Install) UninstallPackage(app *marathon.App) error {
@@ -131,6 +144,7 @@ func (install *Install) UninstallPackage(app *marathon.App) error {
 		return err
 	}
 
+	// run post-uninstall
 	err = install.postUninstall(app)
 	if err != nil {
 		log.Errorf("Failed to run post-uninstall for %s: %v", app.ID, err)
@@ -162,24 +176,28 @@ func (install *Install) SyncSources(sources []*Source, force bool) error {
 
 func (install *Install) postUninstall(app *marathon.App) error {
 	name := app.Labels[packageNameKey]
-	version := app.Labels[packageVersionKey]
-	pkgDef, err := install.GetPackageDefinition(name, version, nil, apiConfig)
-	if err != nil {
-		log.Errorf("Could not perform post-install for %s. Could not find package definition: %v", name, err)
-		return err
-	}
+	encoded := app.Labels[packageUninstallKey]
+	if encoded != "" {
+		decoded, err := base64.StdEncoding.DecodeString(encoded)
+		if err != nil {
+			log.Errorf("Could not perform post-install for %s. Could not decode uninstall json: %v", name, err)
+			return err
+		}
 
-	pkgU, err := pkgDef.PostUninstall()
-	if err != nil {
-		log.Errorf("Could not get post-uninstall commands: %v", err)
-		return err
-	}
+		uninstall := &packageUninstall{}
+		err = json.Unmarshal(decoded, &uninstall)
 
-	// run zookeeper delete commands
-	if pkgU != nil && pkgU.Zookeeper != nil && len(pkgU.Zookeeper.Delete) > 0 {
-		for _, deleteNode := range pkgU.Zookeeper.Delete {
-			if deleteNode.Always {
-				install.zookeeper.Delete(deleteNode.Path)
+		if err != nil {
+			log.Errorf("Could not perform post-install for %s. Could not decode unmarshal uninstall json: %v", name, err)
+			return err
+		}
+
+		// run zookeeper delete commands
+		if uninstall.Zookeeper != nil && len(uninstall.Zookeeper.Delete) > 0 {
+			for _, deleteNode := range uninstall.Zookeeper.Delete {
+				if deleteNode.Always {
+					install.zookeeper.Delete(deleteNode.Path)
+				}
 			}
 		}
 	}
@@ -197,26 +215,45 @@ func (install *Install) installedApps() ([]*marathon.App, error) {
 	return apps, err
 }
 
-func (install *Install) findInstalledApp(pkgReq *PackageRequest) *marathon.App {
-	apps, err := install.installedApps()
-	if err != nil {
-		return nil
+func filterByID(id string, apps []*marathon.App) []*marathon.App {
+	packages := []*marathon.App{}
+
+	if !strings.HasPrefix(id, "/") {
+		id = "/" + id
 	}
 
-	// TODO: this needs to be more sophisticated
-	// TODO: take version into account
-	// TODO: check and prompt if more than 1 matching instance
-	var matching *marathon.App
 	for _, app := range apps {
-		if app.Labels[packageNameKey] == pkgReq.Name {
-			matching = app
-			break
+		if app.ID == id {
+			packages = append(packages, app)
 		}
 	}
-	return matching
+	return packages
+}
+func filterPackages(apps []*marathon.App) []*marathon.App {
+	packages := []*marathon.App{}
+
+	for _, app := range apps {
+		if _, ok := app.Labels[packageNameKey]; ok {
+			packages = append(packages, app)
+		}
+	}
+
+	return packages
 }
 
-func addMantlLabels(app *marathon.App, pkgDef *packageDefinition) {
+func filterByPackageName(name string, apps []*marathon.App) []*marathon.App {
+	packages := []*marathon.App{}
+
+	for _, app := range apps {
+		if app.Labels[packageNameKey] == name {
+			packages = append(packages, app)
+		}
+	}
+
+	return packages
+}
+
+func addMantlLabels(app *marathon.App, pkgDef *packageDefinition) error {
 	if app.Labels == nil {
 		app.Labels = make(map[string]string)
 	}
@@ -224,6 +261,12 @@ func addMantlLabels(app *marathon.App, pkgDef *packageDefinition) {
 	app.Labels[packageVersionKey] = pkgDef.version
 	app.Labels[packageIndexKey] = pkgDef.release
 	app.Labels[packageIsFrameworkKey] = strconv.FormatBool(pkgDef.framework)
+
+	uninstallJson, err := pkgDef.UninstallJson()
+	if err != nil {
+		return err
+	}
+	app.Labels[packageUninstallKey] = base64.StdEncoding.EncodeToString([]byte(uninstallJson))
 
 	if pkgDef.frameworkName != "" {
 		app.Labels[packageFrameworkNameKey] = pkgDef.frameworkName
@@ -233,4 +276,6 @@ func addMantlLabels(app *marathon.App, pkgDef *packageDefinition) {
 	if fwName, ok := app.Labels[dcosPackageFrameworkNameKey]; ok {
 		app.Labels[packageFrameworkNameKey] = fwName
 	}
+
+	return nil
 }
