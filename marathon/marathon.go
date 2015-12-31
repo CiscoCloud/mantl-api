@@ -114,7 +114,7 @@ func (m Marathon) ToApp(appJson string) (*App, error) {
 }
 
 func (m Marathon) Apps() ([]*App, error) {
-	httpReq, err := m.httpClient.Get("/v2/apps")
+	httpReq, err := m.httpClient.Get("/v2/apps/")
 
 	if err != nil || (httpReq.Response.StatusCode != 200) {
 		return nil, err
@@ -134,7 +134,7 @@ func (m Marathon) CreateApp(app *App) (string, error) {
 
 	log.Debugf("app json: %s", string(jsonBlob))
 
-	httpReq, err := m.httpClient.Post("/v2/apps", jsonBlob)
+	httpReq, err := m.httpClient.Post("/v2/apps/", jsonBlob)
 
 	if err != nil {
 		return "", err
