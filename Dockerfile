@@ -6,7 +6,7 @@ COPY launch.sh /launch.sh
 
 COPY . /go/src/github.com/CiscoCloud/mantl-api
 
-RUN apk add go git mercurial \
+RUN apk add --update go git mercurial \
 	&& cd /go/src/github.com/CiscoCloud/mantl-api \
 	&& export GOPATH=/go \
 	&& go get -t -u github.com/stretchr/testify \
