@@ -11,11 +11,14 @@ Currently, Mantl API allows you to install and uninstall [DCOS packages](https:/
 
 - [Mantl API](#mantl-api)
     - [Comparison to Other Software](#comparison-to-other-software)
+    - [Mantl API on Mantl Clusters](#mantl-api-on-mantl-clusters)
     - [Building](#building)
-    - [Deploying](#deploying)
+    - [Deploying Manually](#deploying-manually)
         - [Options](#options)
     - [Package Repository](#package-repository)
+        - [Package Repository Structure](#package-repository-structure)
         - [Synchronizing Repository Sources](#synchronizing-repository-sources)
+        - [Configuring Sources](#configuring-sources)
     - [Usage](#usage)
         - [Installing a Package](#installing-a-package)
         - [Uninstalling a Package](#uninstalling-a-package)
@@ -23,8 +26,8 @@ Currently, Mantl API allows you to install and uninstall [DCOS packages](https:/
         - [GET /health](#get-health)
         - [GET /1/packages](#get-1packages)
         - [GET /1/packages/<package>](#get-1packagespackage)
-        - [POST /1/packages](#post-1packages)
-        - [DELETE /1/packages/<package>](#delete-1packagespackage)
+        - [POST /1/install](#post-1install)
+        - [DELETE /1/install](#delete-1install)
     - [License](#license)
 
 <!-- markdown-toc end -->
@@ -223,7 +226,7 @@ The following example curl commands assume a default Mantl API installation (wit
 It is a single API call to install a package. In the example below, we are going to run [Cassandra](http://cassandra.apache.org) on our Mantl cluster.
 
 ```shell
-curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/packages
+curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/install
 ```
 
 You will need to replace `mantl-worker-003` and `4001` with the host and port where Mantl API is running. You can use the Marathon API or UI to find this. You'll also need to make sure that the port is accessible to the machine where you are calling the API from. Adjust the security groups or firewall rules for your platform accordingly.
@@ -235,7 +238,7 @@ After about 5 minutes, you should have Cassandra up and running on your Mantl cl
 Uninstalling is just as easy. Run the command below to uninstall Cassandra:
 
 ```shell
-curl -X DELETE http://mantl-control-01/api/1/packages/cassandra
+curl -X DELETE -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/install
 ```
 
 After a moment, Cassandra will have been removed from your cluster. This will also remove the [Zookeeper](https://zookeeper.apache.org) state for the Cassandra framework. In the future, we will add more flexibility in being able to control what is uninstalled.
@@ -246,9 +249,9 @@ After a moment, Cassandra will have been removed from your cluster. This will al
 ---------------------|--------|-----------------------------------------------------
  `/health`           | GET    | health check - returns `OK` with an HTTP 200 status
  `/1/packages`       | GET    | list available packages
- `/1/packages`       | POST   | install a package
  `/1/packages/:name` | GET    | provides information about a specific package
- `/1/packages/:name` | DELETE | uninstalls a specific package
+ `/1/install`        | POST   | install a package
+ `/1/install`        | DELETE | uninstalls a specific package
 
 ### GET /health
 
@@ -356,12 +359,12 @@ curl http://mantl-control-01/api/1/packages/cassandra | jq .
 }
 ```
 
-### POST /1/packages
+### POST /1/install
 
-`POST /1/packages`: post a JSON representation of a package to install.
+`POST /1/install`: post a JSON representation of a package to install.
 
 ```shell
-curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/packages | jq .
+curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/install | jq .
 ```
 
 ```json
@@ -463,12 +466,12 @@ curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/packag
 }
 ```
 
-### DELETE /1/packages/<package>
+### DELETE /1/install
 
-`DELETE /1/packages/<package>`: post a JSON representation of package specific uninstall options.
+`DELETE /1/install`: post a JSON representation of package specific uninstall options.
 
 ```shell
-curl -X DELETE -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/packages/cassandra
+curl -X DELETE -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/install
 ```
 
 ## License
