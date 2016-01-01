@@ -25,9 +25,10 @@ func (api *Api) Start() {
 	router.GET("/health", api.health)
 
 	router.GET("/1/packages", api.packages)
-	router.POST("/1/packages", api.installPackage)
 	router.GET("/1/packages/:name", api.describePackage)
-	router.DELETE("/1/packages", api.uninstallPackage)
+
+	router.POST("/1/install", api.installPackage)
+	router.DELETE("/1/install", api.uninstallPackage)
 
 	log.WithField("port", api.listen).Info("Starting listener")
 	log.Fatal(http.ListenAndServe(api.listen, router))
