@@ -214,12 +214,14 @@ The following attributes can be specified for each source:
 
 ## Usage
 
+The following example curl commands assume a default Mantl API installation (with a control node called `mantl-control-01`) on a Mantl cluster with SSL and authentication turned off. You will need to adjust the commands to work with valid URLs and credentials for your cluster.
+
 ### Installing a Package
 
 It is a single API call to install a package. In the example below, we are going to run [Cassandra](http://cassandra.apache.org) on our Mantl cluster.
 
 ```shell
-curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-worker-003:4001/1/packages
+curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/packages
 ```
 
 You will need to replace `mantl-worker-003` and `4001` with the host and port where Mantl API is running. You can use the Marathon API or UI to find this. You'll also need to make sure that the port is accessible to the machine where you are calling the API from. Adjust the security groups or firewall rules for your platform accordingly.
@@ -231,7 +233,7 @@ After about 5 minutes, you should have Cassandra up and running on your Mantl cl
 Uninstalling is just as easy. Run the command below to uninstall Cassandra:
 
 ```shell
-curl -X DELETE http://mantl-worker-003.jossware.org:4001/1/packages/cassandra
+curl -X DELETE http://mantl-control-01/api/1/packages/cassandra
 ```
 
 After a moment, Cassandra will have been removed from your cluster. This will also remove the [Zookeeper](https://zookeeper.apache.org) state for the Cassandra framework. In the future, we will add more flexibility in being able to control what is uninstalled.
@@ -251,7 +253,7 @@ After a moment, Cassandra will have been removed from your cluster. This will al
 `GET /health`: returns `OK`
 
 ```shell
-curl http://mantl-worker-003:4001/health
+curl http://mantl-control-01/api/health
 ```
 
 ```
@@ -263,7 +265,7 @@ OK
 `GET /1/packages`: returns a JSON representation of packages available to install.
 
 ```shell
-curl http://mantl-control-01:4001/1/packages | jq .
+curl http://mantl-control-01/api/1/packages | jq .
 ```
 
 ```json
@@ -321,7 +323,7 @@ curl http://mantl-control-01:4001/1/packages | jq .
 `GET /1/packages/<package>`: returns a JSON representation of a package.
 
 ```shell
-curl http://mantl-worker-001:4001/1/packages/cassandra | jq .
+curl http://mantl-control-01/api/1/packages/cassandra | jq .
 ```
 
 ```json
@@ -357,7 +359,7 @@ curl http://mantl-worker-001:4001/1/packages/cassandra | jq .
 `POST /1/packages`: post a JSON representation of a package to install.
 
 ```shell
-curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-worker-001:4001/1/packages | jq .
+curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/packages | jq .
 ```
 
 ```json
@@ -464,7 +466,7 @@ curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-worker-001:4001/1/packa
 `DELETE /1/packages/<package>`: post a JSON representation of package specific uninstall options.
 
 ```shell
-curl -X DELETE -d "{\"name\": \"cassandra\"}" http://mantl-worker-001:4001/1/packages/cassandra
+curl -X DELETE -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/packages/cassandra
 ```
 
 ## License
