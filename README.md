@@ -35,12 +35,14 @@ Mantl API leverages the [Mesosphere DCOS package repository](https://github.com/
 
 ## Mantl API on Mantl Clusters
 
-As of the [0.5 release](https://github.com/CiscoCloud/microservices-infrastructure/releases/tag/0.5.0), Mantl API is installed by default on Mantl clusters. It is available on control nodes at the `/api` endpoint and, by default, is behind SSL and basic authentication. For example, you could get a list of packages by running a command like the following on a default Mantl install:
+As of the [0.5 release](https://github.com/CiscoCloud/microservices-infrastructure/releases/tag/0.5.0), Mantl API is installed by default on Mantl clusters. It is deployed via Marathon and will be running on one of the worker nodes. Mantl automatically discovers the Mantl API instance and puts it behind Nginx on all control nodes at the `/api` endpoint. By default, it is secured with SSL and basic authentication. As an example, on a default Mantl install, you can retrieve the list of available packages by running a command like the following:
 
 
 ```shell
 curl -k -u admin:mantlpw https://mantl-control-01/api/1/packages
 ```
+
+You just need to update the command with the correct host name and credentials for your cluster. All of the examples in this document will assume you are working with Mantl API on a Mantl cluster and will use urls underneath `/api`.
 
 ## Building
 
