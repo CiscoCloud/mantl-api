@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/tls"
 	"fmt"
 	"github.com/CiscoCloud/mantl-api/api"
 	"github.com/CiscoCloud/mantl-api/install"
@@ -10,6 +11,7 @@ import (
 	"github.com/CiscoCloud/mantl-api/zookeeper"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -36,6 +38,7 @@ func main() {
 	rootCmd.PersistentFlags().String("log-level", "info", "one of debug, info, warn, error, or fatal")
 	rootCmd.PersistentFlags().String("log-format", "text", "specify output (text or json)")
 	rootCmd.PersistentFlags().String("consul", "http://localhost:8500", "Consul Api address")
+	rootCmd.PersistentFlags().Bool("consul-no-verify-ssl", false, "Consul SSL verification")
 	rootCmd.PersistentFlags().String("marathon", "", "Marathon Api address")
 	rootCmd.PersistentFlags().String("marathon-user", "", "Marathon Api user")
 	rootCmd.PersistentFlags().String("marathon-password", "", "Marathon Api password")
@@ -143,6 +146,14 @@ func consulClient() *consul.Client {
 	consulConfig.Address = address
 
 	log.Debugf("Using Consul at %s over %s", consulConfig.Address, consulConfig.Scheme)
+
+	if viper.GetBool("consul-no-verify-ssl") {
+		transport := cleanhttp.DefaultTransport()
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		consulConfig.HttpClient.Transport = transport
+	}
 
 	client, err := consul.NewClient(consulConfig)
 	if err != nil {
