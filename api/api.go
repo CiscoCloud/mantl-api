@@ -4,20 +4,23 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/CiscoCloud/mantl-api/install"
+	"github.com/CiscoCloud/mantl-api/mesos"
 	log "github.com/Sirupsen/logrus"
 	"github.com/julienschmidt/httprouter"
 	"io"
 	"io/ioutil"
 	"net/http"
+	"time"
 )
 
 type Api struct {
 	listen  string
 	install *install.Install
+	mesos   *mesos.Mesos
 }
 
-func NewApi(listen string, install *install.Install) *Api {
-	return &Api{listen, install}
+func NewApi(listen string, install *install.Install, mesos *mesos.Mesos) *Api {
+	return &Api{listen, install, mesos}
 }
 
 func logHandler(handler http.Handler) http.Handler {
@@ -34,6 +37,9 @@ func (api *Api) Start() {
 
 	router.GET("/1/packages", api.packages)
 	router.GET("/1/packages/:name", api.describePackage)
+
+	router.GET("/1/frameworks", api.frameworks)
+	router.DELETE("/1/frameworks/:id", api.shutdownFramework)
 
 	router.POST("/1/install", api.installPackage)
 	router.DELETE("/1/install", api.uninstallPackage)
@@ -135,6 +141,59 @@ func (api *Api) uninstallPackage(w http.ResponseWriter, req *http.Request, _ htt
 	}
 
 	w.WriteHeader(204)
+}
+
+type frameworkResponse struct {
+	Name             string    `json:"name"`
+	ID               string    `json:"id"`
+	Active           bool      `json:"active"`
+	Hostname         string    `json:"hostname"`
+	User             string    `json:"user"`
+	RegisteredTime   time.Time `json:"registeredTime"`
+	ReregisteredTime time.Time `json:"reregisteredTime"`
+	ActiveTasks      int       `json:"activeTasks"`
+}
+
+func (api *Api) frameworks(w http.ResponseWriter, req *http.Request, _ httprouter.Params) {
+	w.Header().Set("Content-Type", "application/json")
+
+	var frameworks []*mesos.Framework
+	var err error
+	if _, ok := req.URL.Query()["completed"]; ok {
+		frameworks, err = api.mesos.CompletedFrameworks()
+	} else {
+		frameworks, err = api.mesos.Frameworks()
+	}
+
+	if err != nil {
+		writeError(w, "Could not retrieve frameworks", 500, err)
+		return
+	}
+
+	response := make([]*frameworkResponse, len(frameworks))
+	for i, fw := range frameworks {
+		var rrtime time.Time
+		rtime := time.Unix(int64(fw.RegisteredTime), 0)
+		if fw.ReregisteredTime != 0 {
+			rrtime = time.Unix(int64(fw.ReregisteredTime), 0)
+		}
+		response[i] = &frameworkResponse{fw.Name, fw.ID, fw.Active, fw.Hostname, fw.User, rtime, rrtime, len(fw.Tasks)}
+	}
+
+	if err := json.NewEncoder(w).Encode(response); err != nil {
+		writeError(w, "Could not encode frameworks %s", 500, err)
+	}
+}
+
+func (api *Api) shutdownFramework(w http.ResponseWriter, req *http.Request, ps httprouter.Params) {
+	w.WriteHeader(202)
+	frameworkId := ps.ByName("id")
+
+	err := api.mesos.Shutdown(frameworkId)
+	if err != nil {
+		writeError(w, fmt.Sprintf("Could not shutdown framework %s", frameworkId), 500, err)
+		return
+	}
 }
 
 func writeError(w http.ResponseWriter, msg string, status int, err error) {

@@ -229,7 +229,11 @@ var optionsJson = `
     "cluster-name": "dcos-test",
     "zk": "zk://zookeeper.service.consul:2181/cassandra-mesos/dcos-test",
     "framework": {
-      "authentication": { "enabled": true }
+      "authentication": {
+        "enabled": true,
+        "principal": "{{mantl.mesos.principal}}",
+        "secret": "{{mantl.mesos.secret}}"
+      }
     }
 	}
 }
@@ -274,6 +278,7 @@ var marathonJson = `
   },
   "env": {
     "MESOS_ZK": "{{mesos.master}}"
+    ,"MESOS_SECRET_PATH": "{{mantl.mesos.secret-path}}"
     ,"JAVA_OPTS": "-Xms256m -Xmx256m"
     ,"CASSANDRA_CLUSTER_NAME": "{{cassandra.cluster-name}}"
     ,"CASSANDRA_NODE_COUNT": "{{cassandra.node-count}}"
@@ -302,12 +307,12 @@ var marathonJson = `
 {{#cassandra.resource.heap-mb}}
 ,"CASSANDRA_RESOURCE_HEAP_MB": "{{cassandra.resource.heap-mb}}"
 {{/cassandra.resource.heap-mb}}
-{{#framework.authentication.principal}}
+{{#cassandra.framework.authentication.principal}}
     ,"DEFAULT_PRINCIPAL": "{{cassandra.framework.authentication.principal}}"
-{{/framework.authentication.principal}}
-{{#framework.authentication.secret}}
+{{/cassandra.framework.authentication.principal}}
+{{#cassandra.framework.authentication.secret}}
     ,"DEFAULT_SECRET": "{{cassandra.framework.authentication.secret}}"
-{{/framework.authentication.secret}}
+{{/cassandra.framework.authentication.secret}}
   }
 }
 `
@@ -469,15 +474,31 @@ func TestMergeOptions(t *testing.T) {
 func TestMarathon(t *testing.T) {
 	t.Parallel()
 
+	apiConfig := map[string]interface{}{
+		"mantl": map[string]interface{}{
+			"mesos": map[string]interface{}{
+				"principal":              "mesos-principal",
+				"secret":                 "mesos-secret",
+				"secret-path":            "/etc/sysconfig/mesos-principal",
+				"authentication-enabled": true,
+			},
+		},
+	}
+
 	pkgDef := &packageDefinition{
 		configJson:   []byte(configJson),
 		optionsJson:  []byte(optionsJson),
 		marathonJson: []byte(marathonJson),
+		apiConfig:    apiConfig,
 	}
 
 	marathon, _ := pkgDef.MarathonAppJson()
 	assert.True(t, strings.Contains(marathon, "\"id\": \"/cassandra/dcos-test\","))
 	assert.True(t, strings.Contains(marathon, "\"MESOS_ZK\": \"zk://zookeeper.service.consul:2181/mesos\""))
+	assert.True(t, strings.Contains(marathon, "\"MESOS_AUTHENTICATE\": \"true\""))
+	assert.True(t, strings.Contains(marathon, "\"DEFAULT_PRINCIPAL\": \"mesos-principal\""))
+	assert.True(t, strings.Contains(marathon, "\"DEFAULT_SECRET\": \"mesos-secret\""))
+	assert.True(t, strings.Contains(marathon, "\"MESOS_SECRET_PATH\": \"/etc/sysconfig/mesos-principal\""))
 }
 
 func TestUserConfig(t *testing.T) {

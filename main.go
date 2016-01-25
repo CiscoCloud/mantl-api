@@ -45,7 +45,7 @@ func main() {
 	rootCmd.PersistentFlags().Bool("marathon-no-verify-ssl", false, "Marathon SSL verification")
 	rootCmd.PersistentFlags().String("mesos", "", "Mesos Api address")
 	rootCmd.PersistentFlags().String("mesos-principal", "", "Mesos principal for framework authentication")
-	rootCmd.PersistentFlags().String("mesos-secret", "", "Mesos secret for framework authentication")
+	rootCmd.PersistentFlags().String("mesos-secret-path", "", "Path to a file on host sytem that contains the mesos secret for framework authentication")
 	rootCmd.PersistentFlags().Bool("mesos-no-verify-ssl", false, "Mesos SSL verification")
 	rootCmd.PersistentFlags().String("listen", ":4001", "mantl-api listen address")
 	rootCmd.PersistentFlags().String("zookeeper", "", "Comma-delimited list of zookeeper servers")
@@ -110,7 +110,7 @@ func start() {
 	mesosClient, err := mesos.NewMesos(
 		mesosUrl,
 		viper.GetString("mesos-principal"),
-		viper.GetString("mesos-secret"),
+		viper.GetString("mesos-secret-path"),
 		viper.GetBool("mesos-no-verify-ssl"),
 	)
 	if err != nil {
@@ -133,7 +133,7 @@ func start() {
 	sync(inst, viper.GetBool("force-sync"))
 
 	// start listener
-	api.NewApi(viper.GetString("listen"), inst).Start()
+	api.NewApi(viper.GetString("listen"), inst, mesosClient).Start()
 }
 
 func consulClient() *consul.Client {
