@@ -20,7 +20,7 @@ import (
 )
 
 const Name = "mantl-api"
-const Version = "0.1.3.1"
+const Version = "0.1.4"
 
 func main() {
 	rootCmd := &cobra.Command{
