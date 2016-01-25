@@ -190,13 +190,7 @@ func sync(inst *install.Install, force bool) {
 			Name:       "mantl",
 			Path:       "https://github.com/CiscoCloud/mantl-universe.git",
 			SourceType: install.Git,
-			Branch:     "master",
-			Index:      1,
-		},
-		&install.Source{
-			Name:       "mesosphere",
-			Path:       "https://github.com/mesosphere/universe.git",
-			SourceType: install.Git,
+			Branch:     "version-0.6",
 			Index:      0,
 		},
 	}
