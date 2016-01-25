@@ -43,6 +43,7 @@ func NewInstall(consulClient *consul.Client, marathon *marathon.Marathon, mesos 
 				"mesos": map[string]interface{}{
 					"principal":              mesos.Principal,
 					"secret":                 mesos.Secret,
+					"secret-path":            mesos.SecretPath,
 					"authentication-enabled": mesosAuthRequired,
 				},
 			},
