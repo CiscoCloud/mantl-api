@@ -133,7 +133,7 @@ func start() {
 	sync(inst, viper.GetBool("force-sync"))
 
 	// start listener
-	api.NewApi(viper.GetString("listen"), inst, mesosClient).Start()
+	api.NewApi(Name, viper.GetString("listen"), inst, mesosClient).Start()
 }
 
 func consulClient() *consul.Client {

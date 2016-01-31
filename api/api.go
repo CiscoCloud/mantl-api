@@ -10,8 +10,11 @@ import (
 	"io"
 	"io/ioutil"
 	"net/http"
+	"os"
 	"time"
 )
+
+var agent string
 
 type Api struct {
 	listen  string
@@ -19,7 +22,18 @@ type Api struct {
 	mesos   *mesos.Mesos
 }
 
-func NewApi(listen string, install *install.Install, mesos *mesos.Mesos) *Api {
+func init() {
+	var err error
+	agent, err = os.Hostname()
+	if err != nil {
+		log.Errorf("Could not determine hostname: %s", err.Error())
+	}
+}
+
+func NewApi(id string, listen string, install *install.Install, mesos *mesos.Mesos) *Api {
+	if id != "" {
+		agent = fmt.Sprintf("%s.%s", id, agent)
+	}
 	return &Api{listen, install, mesos}
 }
 
@@ -31,12 +45,23 @@ func logHandler(handler http.Handler) http.Handler {
 	return http.HandlerFunc(hfunc)
 }
 
+func deprecate(handle httprouter.Handle, msg string) httprouter.Handle {
+	return func(w http.ResponseWriter, r *http.Request, p httprouter.Params) {
+		warning := fmt.Sprintf("299 %s \"Deprecated API. %s\" \"%s\"",
+			agent, msg, time.Now().Format(http.TimeFormat))
+		w.Header().Set("Warning", warning)
+		handle(w, r, p)
+	}
+}
+
 func (api *Api) Start() {
 	router := httprouter.New()
 	router.GET("/health", api.health)
 
 	router.GET("/1/packages", api.packages)
 	router.GET("/1/packages/:name", api.describePackage)
+	router.POST("/1/packages", deprecate(api.installPackage, "Use /1/install instead."))
+	router.DELETE("/1/packages", deprecate(api.uninstallPackage, "Use /1/install instead."))
 
 	router.GET("/1/frameworks", api.frameworks)
 	router.DELETE("/1/frameworks/:id", api.shutdownFramework)
