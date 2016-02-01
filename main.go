@@ -91,7 +91,7 @@ func start() {
 
 	marathonUrl := viper.GetString("marathon")
 	if marathonUrl == "" {
-		marathonUrl = NewDiscovery(client, "marathon", "", "http", marathonUrl).discoveredUrl
+		marathonUrl = NewDiscovery(client, "marathon", "", "http", "http://localhost:8080").discoveredUrl
 	}
 	marathonClient, err := marathon.NewMarathon(
 		marathonUrl,

@@ -124,12 +124,6 @@ func (install *Install) UninstallPackage(app *marathon.App) error {
 		return errors.New("App cannot be nil when uninstalling a package")
 	}
 
-	// get framework name
-	fwName := app.Labels[packageFrameworkNameKey]
-	if fwName == "" {
-		fwName = app.Labels[dcosPackageFrameworkNameKey]
-	}
-
 	// remove app from marathon
 	_, err := install.marathon.DestroyApp(app.ID)
 
@@ -138,11 +132,19 @@ func (install *Install) UninstallPackage(app *marathon.App) error {
 		return err
 	}
 
-	// shutdown mesos framework
-	err = install.mesos.ShutdownFrameworkByName(fwName)
-	if err != nil {
-		log.Errorf("Could not shutdown framework from Mesos: %v", err)
-		return err
+	// get framework name
+	fwName := app.Labels[packageFrameworkNameKey]
+	if fwName == "" {
+		fwName = app.Labels[dcosPackageFrameworkNameKey]
+	}
+
+	if fwName != "" {
+		// shutdown mesos framework
+		err = install.mesos.ShutdownFrameworkByName(fwName)
+		if err != nil {
+			log.Errorf("Could not shutdown framework from Mesos: %v", err)
+			return err
+		}
 	}
 
 	// run post-uninstall
