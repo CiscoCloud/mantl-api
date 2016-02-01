@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/tls"
+	"fmt"
 	"github.com/CiscoCloud/mantl-api/api"
 	"github.com/CiscoCloud/mantl-api/install"
 	"github.com/CiscoCloud/mantl-api/marathon"
@@ -9,6 +11,7 @@ import (
 	"github.com/CiscoCloud/mantl-api/zookeeper"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
+	"github.com/hashicorp/go-cleanhttp"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -17,7 +20,7 @@ import (
 )
 
 const Name = "mantl-api"
-const Version = "0.1.3"
+const Version = "0.1.4"
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -35,13 +38,15 @@ func main() {
 	rootCmd.PersistentFlags().String("log-level", "info", "one of debug, info, warn, error, or fatal")
 	rootCmd.PersistentFlags().String("log-format", "text", "specify output (text or json)")
 	rootCmd.PersistentFlags().String("consul", "http://localhost:8500", "Consul Api address")
+	rootCmd.PersistentFlags().Bool("consul-no-verify-ssl", false, "Consul SSL verification")
 	rootCmd.PersistentFlags().String("marathon", "", "Marathon Api address")
 	rootCmd.PersistentFlags().String("marathon-user", "", "Marathon Api user")
 	rootCmd.PersistentFlags().String("marathon-password", "", "Marathon Api password")
 	rootCmd.PersistentFlags().Bool("marathon-no-verify-ssl", false, "Marathon SSL verification")
 	rootCmd.PersistentFlags().String("mesos", "", "Mesos Api address")
 	rootCmd.PersistentFlags().String("mesos-principal", "", "Mesos principal for framework authentication")
-	rootCmd.PersistentFlags().String("mesos-secret", "", "Mesos secret for framework authentication")
+	rootCmd.PersistentFlags().String("mesos-secret", "", "Deprecated. Use mesos-secret-path instead")
+	rootCmd.PersistentFlags().String("mesos-secret-path", "/etc/sysconfig/mantl-api", "Path to a file on host sytem that contains the mesos secret for framework authentication")
 	rootCmd.PersistentFlags().Bool("mesos-no-verify-ssl", false, "Mesos SSL verification")
 	rootCmd.PersistentFlags().String("listen", ":4001", "mantl-api listen address")
 	rootCmd.PersistentFlags().String("zookeeper", "", "Comma-delimited list of zookeeper servers")
@@ -69,15 +74,25 @@ func main() {
 	}
 	rootCmd.AddCommand(syncCommand)
 
+	versionCommand := &cobra.Command{
+		Use:   "version",
+		Short: fmt.Sprintf("Print the version number of %s", Name),
+		Run: func(cmd *cobra.Command, args []string) {
+			fmt.Printf("%s v%s\n", Name, Version)
+		},
+	}
+	rootCmd.AddCommand(versionCommand)
+
 	rootCmd.Execute()
 }
 
 func start() {
+	log.Infof("Starting %s v%s", Name, Version)
 	client := consulClient()
 
 	marathonUrl := viper.GetString("marathon")
 	if marathonUrl == "" {
-		marathonUrl = NewDiscovery(client, "marathon", "", "http", marathonUrl).discoveredUrl
+		marathonUrl = NewDiscovery(client, "marathon", "", "http", "http://localhost:8080").discoveredUrl
 	}
 	marathonClient, err := marathon.NewMarathon(
 		marathonUrl,
@@ -96,7 +111,7 @@ func start() {
 	mesosClient, err := mesos.NewMesos(
 		mesosUrl,
 		viper.GetString("mesos-principal"),
-		viper.GetString("mesos-secret"),
+		viper.GetString("mesos-secret-path"),
 		viper.GetBool("mesos-no-verify-ssl"),
 	)
 	if err != nil {
@@ -119,12 +134,12 @@ func start() {
 	sync(inst, viper.GetBool("force-sync"))
 
 	// start listener
-	api.NewApi(viper.GetString("listen"), inst).Start()
+	api.NewApi(Name, viper.GetString("listen"), inst, mesosClient).Start()
 }
 
 func consulClient() *consul.Client {
 	consulConfig := consul.DefaultConfig()
-	scheme, address, err := http.ParseUrl(viper.GetString("consul"))
+	scheme, address, _, err := http.ParseUrl(viper.GetString("consul"))
 	if err != nil {
 		log.Fatalf("Could not create consul client: %v", err)
 	}
@@ -132,6 +147,14 @@ func consulClient() *consul.Client {
 	consulConfig.Address = address
 
 	log.Debugf("Using Consul at %s over %s", consulConfig.Address, consulConfig.Scheme)
+
+	if viper.GetBool("consul-no-verify-ssl") {
+		transport := cleanhttp.DefaultTransport()
+		transport.TLSClientConfig = &tls.Config{
+			InsecureSkipVerify: true,
+		}
+		consulConfig.HttpClient.Transport = transport
+	}
 
 	client, err := consul.NewClient(consulConfig)
 	if err != nil {
@@ -168,12 +191,7 @@ func sync(inst *install.Install, force bool) {
 			Name:       "mantl",
 			Path:       "https://github.com/CiscoCloud/mantl-universe.git",
 			SourceType: install.Git,
-			Index:      1,
-		},
-		&install.Source{
-			Name:       "mesosphere",
-			Path:       "https://github.com/mesosphere/universe.git",
-			SourceType: install.Git,
+			Branch:     "version-0.6",
 			Index:      0,
 		},
 	}
@@ -224,6 +242,7 @@ func readConfigFile() {
 	// read configuration file if specified
 	configFile := viper.GetString("config-file")
 	if configFile != "" {
+		configFile = os.ExpandEnv(configFile)
 		if _, err := os.Stat(configFile); err == nil {
 			viper.SetConfigFile(configFile)
 			err = viper.ReadInConfig()

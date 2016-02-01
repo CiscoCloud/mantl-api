@@ -14,20 +14,25 @@ updatedeps:
 	go get -u -v ./...
 	echo $(DEPS) | xargs -n1 go get -d
 
-build: deps
-	@mkdir -p bin/
+quickbuild:
 	go build -o bin/$(NAME)
 
-test: deps
-	go test $(TEST) $(TESTARGS) -timeout=30s -parallel=4
-	go vet $(TEST)
+build: deps quickbuild
 
 quicktest:
 	go test $(TEST) $(TESTARGS) -timeout=30s -parallel=4
+
+test: deps quicktest
+	go vet $(TEST)
 
 docker: deps
 	docker build -t $(DOCKERREPO)/$(NAME) .
 	docker tag -f $(DOCKERREPO)/$(NAME) $(DOCKERREPO)/$(NAME):$(VERSION)
 
-dockerpush: docker
+pushedge: docker
+	docker tag -f $(DOCKERREPO)/$(NAME) $(DOCKERREPO)/$(NAME):edge
+	docker push $(DOCKERREPO)/$(NAME):edge
+
+push: docker
 	docker push $(DOCKERREPO)/$(NAME):$(VERSION)
+	docker push $(DOCKERREPO)/$(NAME):latest
