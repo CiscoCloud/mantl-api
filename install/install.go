@@ -20,6 +20,7 @@ const packageIsFrameworkKey = "MANTL_PACKAGE_IS_FRAMEWORK"
 const packageFrameworkNameKey = "MANTL_PACKAGE_FRAMEWORK_NAME"
 const packageUninstallKey = "MANTL_PACKAGE_UNINSTALL"
 const dcosPackageFrameworkNameKey = "DCOS_PACKAGE_FRAMEWORK_NAME"
+const traefikEnableKey = "traefik.enable"
 
 var apiConfig map[string]interface{}
 
@@ -278,6 +279,13 @@ func addMantlLabels(app *marathon.App, pkgDef *packageDefinition) error {
 	// copy DCOS_PACKAGE_FRAMEWORK_NAME if it exists
 	if fwName, ok := app.Labels[dcosPackageFrameworkNameKey]; ok {
 		app.Labels[packageFrameworkNameKey] = fwName
+	}
+
+	lb, err := pkgDef.LoadBalancer()
+	if err == nil {
+		app.Labels[traefikEnableKey] = strconv.FormatBool(lb == "external")
+	} else {
+		log.Warnf("Unable to retrieve load balancer configuration: %s", err.Error())
 	}
 
 	return nil

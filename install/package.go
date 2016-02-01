@@ -230,10 +230,10 @@ func (d packageDefinition) Options() (map[string]interface{}, error) {
 		}
 
 		// merge user config
-		mergedOptions := mergeConfig(options, d.userConfig)
+		mergeConfig(options, d.userConfig)
 
 		// add api config to options
-		mergedOptions["mantl"] = d.apiConfig["mantl"]
+		mergeConfig(options, d.apiConfig)
 	}
 
 	return options, nil
@@ -265,6 +265,21 @@ func (d packageDefinition) MarathonAppJson() (string, error) {
 
 func (d packageDefinition) UninstallJson() (string, error) {
 	return d.renderJsonMustacheTemplate(d.uninstallJson)
+}
+
+func (d packageDefinition) LoadBalancer() (string, error) {
+	config, err := d.MergedConfig()
+	if err != nil {
+		log.Errorf("Unable to retrieve package definition configuration: %v", err)
+		return "off", err
+	}
+
+	lb := "off"
+	v, ok := getConfig(config, "mantl.load-balancer").(string)
+	if ok {
+		lb = strings.ToLower(v)
+	}
+	return lb, nil
 }
 
 func (d packageDefinition) renderJsonMustacheTemplate(jsonBlob []byte) (string, error) {
