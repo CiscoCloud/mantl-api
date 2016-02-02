@@ -192,12 +192,12 @@ func readSecret(path string) string {
 		if _, err := os.Stat(path); err == nil {
 			data, err := ioutil.ReadFile(path)
 			if err != nil {
-				log.Warnf("Could not read secret from %s: %v", path, err)
+				log.Fatalf("Could not read secret from %s: %v", path, err)
 			} else {
 				secret = strings.TrimSpace(string(data))
 			}
 		} else {
-			log.Warnf("Secret file %s does not exist", path)
+			log.Fatalf("Secret file %s does not exist", path)
 		}
 	}
 	return secret
