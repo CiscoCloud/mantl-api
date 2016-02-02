@@ -17,7 +17,7 @@ import (
 )
 
 const Name = "mantl-api"
-const Version = "0.1.3"
+const Version = "0.1.3.1"
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -168,6 +168,7 @@ func sync(inst *install.Install, force bool) {
 			Name:       "mantl",
 			Path:       "https://github.com/CiscoCloud/mantl-universe.git",
 			SourceType: install.Git,
+			Branch:     "master",
 			Index:      1,
 		},
 		&install.Source{
