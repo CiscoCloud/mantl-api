@@ -9,12 +9,14 @@ import (
 	"io/ioutil"
 	h "net/http"
 	"net/url"
+	gpath "path"
 	"strings"
 )
 
 type HttpClient struct {
 	Location    string
 	Protocol    string
+	Path        string
 	Username    string
 	Password    string
 	NoVerifySsl bool
@@ -27,25 +29,25 @@ type HttpRequest struct {
 	ResponseBody []byte
 }
 
-func ParseUrl(u string) (scheme string, host string, err error) {
+func ParseUrl(u string) (scheme string, host string, path string, err error) {
 	if !strings.HasPrefix(u, "http") {
 		u = fmt.Sprintf("http://%s", u)
 	}
 
 	url, err := url.Parse(u)
 	if err != nil {
-		return "", "", err
+		return "", "", "", err
 	}
 
-	return url.Scheme, url.Host, nil
+	return url.Scheme, url.Host, url.Path, nil
 }
 
 func NewHttpClient(url string, user string, pw string, noVerifySsl bool) (*HttpClient, error) {
-	protocol, location, err := ParseUrl(url)
+	protocol, location, path, err := ParseUrl(url)
 	if err != nil {
 		return nil, err
 	}
-	return &HttpClient{location, protocol, user, pw, noVerifySsl}, nil
+	return &HttpClient{location, protocol, path, user, pw, noVerifySsl}, nil
 }
 
 func (c HttpClient) Get(url string) (*HttpRequest, error) {
@@ -120,13 +122,25 @@ func (c HttpClient) getClient() *h.Client {
 }
 
 func (c HttpClient) url(path string) string {
+	urlPath := joinPaths(c.Path, path)
 	u := url.URL{
 		Scheme: c.Protocol,
 		Host:   c.Location,
-		Path:   path,
+		Path:   urlPath,
 	}
 
 	return u.String()
+}
+
+func joinPaths(paths ...string) string {
+	last := paths[len(paths)-1]
+	joined := gpath.Join(paths...)
+
+	if strings.HasSuffix(last, "/") && !strings.HasSuffix(joined, "/") {
+		joined += "/"
+	}
+
+	return joined
 }
 
 func responseBody(response *h.Response) ([]byte, error) {

@@ -26,6 +26,7 @@ func (p packageVersionByMostRecent) Less(i, j int) bool { return p[j].Index < p[
 type PackageRequest struct {
 	Name             string                 `json:"name"`
 	Version          string                 `json:"version"`
+	AppID            string                 `json:"id"`
 	Config           map[string]interface{} `json:"config"`
 	UninstallOptions map[string]interface{} `json:"uninstallOptions"`
 }
@@ -35,6 +36,13 @@ func NewPackageRequest(data []byte) (request *PackageRequest, err error) {
 	if len(data) > 0 {
 		err = json.Unmarshal(data, &request)
 	}
+
+	if err == nil {
+		if request.Name == "" {
+			err = errors.New("Name is required")
+		}
+	}
+
 	return request, err
 }
 
@@ -222,10 +230,10 @@ func (d packageDefinition) Options() (map[string]interface{}, error) {
 		}
 
 		// merge user config
-		mergedOptions := mergeConfig(options, d.userConfig)
+		mergeConfig(options, d.userConfig)
 
 		// add api config to options
-		mergedOptions["mantl"] = d.apiConfig["mantl"]
+		mergeConfig(options, d.apiConfig)
 	}
 
 	return options, nil
@@ -252,17 +260,40 @@ func (d packageDefinition) MergedConfig() (map[string]interface{}, error) {
 }
 
 func (d packageDefinition) MarathonAppJson() (string, error) {
-	marathonTemplate := string(d.marathonJson)
+	return d.renderJsonMustacheTemplate(d.marathonJson)
+}
+
+func (d packageDefinition) UninstallJson() (string, error) {
+	return d.renderJsonMustacheTemplate(d.uninstallJson)
+}
+
+func (d packageDefinition) LoadBalancer() (string, error) {
+	config, err := d.MergedConfig()
+	if err != nil {
+		log.Errorf("Unable to retrieve package definition configuration: %v", err)
+		return "off", err
+	}
+
+	lb := "off"
+	v, ok := getConfig(config, "mantl.load-balancer").(string)
+	if ok {
+		lb = strings.ToLower(v)
+	}
+	return lb, nil
+}
+
+func (d packageDefinition) renderJsonMustacheTemplate(jsonBlob []byte) (string, error) {
+	template := string(jsonBlob)
 	config, err := d.MergedConfig()
 	if err != nil {
 		log.Errorf("Unable to retrieve package definition configuration: %v", err)
 		return "", err
 	}
 
-	// Render marathonTemplate with config
-	tmpl, err := mustache.ParseString(marathonTemplate)
+	// Render template with config
+	tmpl, err := mustache.ParseString(template)
 	if err != nil {
-		log.Errorf("Could not parse marathon template: %v", err)
+		log.Errorf("Could not parse template: %v", err)
 		return "", err
 	}
 
@@ -282,36 +313,6 @@ type zookeeperCommands struct {
 type zookeeperNode struct {
 	Path   string `json:"path"`
 	Always bool   `json:"always"`
-}
-
-func (d packageDefinition) PostUninstall() (*packageUninstall, error) {
-	var uninstall *packageUninstall
-	var err error
-
-	if len(d.uninstallJson) == 0 {
-		return uninstall, nil
-	}
-
-	uninstallTemplate := string(d.uninstallJson)
-	config, err := d.MergedConfig()
-	if err != nil {
-		log.Errorf("Unable to retrieve package definition configuration: %v", err)
-		return uninstall, err
-	}
-
-	// Render uninstallTemplate with config
-	tmpl, err := mustache.ParseString(uninstallTemplate)
-	if err != nil {
-		log.Errorf("Could not parse uninstall template: %v", err)
-		return nil, err
-	}
-
-	jsonBlob := tmpl.Render(config)
-
-	uninstall = &packageUninstall{}
-	err = json.Unmarshal([]byte(jsonBlob), &uninstall)
-
-	return uninstall, err
 }
 
 func (install *Install) getPackages() (PackageCollection, error) {

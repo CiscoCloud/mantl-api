@@ -6,25 +6,35 @@ import (
 	"fmt"
 	"github.com/CiscoCloud/mantl-api/utils/http"
 	log "github.com/Sirupsen/logrus"
+	"io/ioutil"
+	"os"
 	"strconv"
+	"strings"
 )
 
 type Mesos struct {
 	Principal  string
 	Secret     string
+	SecretPath string
 	httpClient *http.HttpClient
 }
 
 type Framework struct {
-	Name   string `json:"name"`
-	ID     string `json:"id"`
-	Active bool   `json:"active"`
+	Name             string  `json:"name"`
+	ID               string  `json:"id"`
+	PID              string  `json:"pid"`
+	Active           bool    `json:"active"`
+	Hostname         string  `json:"hostname"`
+	User             string  `json:"user"`
+	RegisteredTime   float64 `json:"registered_time"`
+	ReregisteredTime float64 `json:"reregistered_time"`
+	Tasks            []*Task `json:"tasks"`
 }
 
 type State struct {
 	CompletedFrameworks    []*Framework `json:"completed_frameworks"`
 	Frameworks             []*Framework `json:"frameworks"`
-	UnregisteredFrameworks []*Framework `json:"unregistered_frameworks"`
+	UnregisteredFrameworks []string     `json:"unregistered_frameworks"`
 	Flags                  Flags        `json:"flags"`
 }
 
@@ -33,7 +43,16 @@ type Flags struct {
 	AuthenticateSlaves string `json:"authenticate_slaves"`
 }
 
-func NewMesos(url string, principal string, secret string, noVerifySsl bool) (*Mesos, error) {
+type Task struct {
+	FrameworkID string `json:"framework_id"`
+	ID          string `json:"id"`
+	Name        string `json:"name"`
+	SlaveID     string `json:"slave_id"`
+	State       string `json:"state"`
+}
+
+func NewMesos(url string, principal string, secretPath string, noVerifySsl bool) (*Mesos, error) {
+	secret := readSecret(secretPath)
 	httpClient, err := http.NewHttpClient(url, principal, secret, noVerifySsl)
 
 	if err != nil {
@@ -43,6 +62,7 @@ func NewMesos(url string, principal string, secret string, noVerifySsl bool) (*M
 	return &Mesos{
 		Principal:  principal,
 		Secret:     secret,
+		SecretPath: secretPath,
 		httpClient: httpClient,
 	}, nil
 }
@@ -56,6 +76,15 @@ func (m Mesos) Frameworks() ([]*Framework, error) {
 	return state.Frameworks, nil
 }
 
+func (m Mesos) CompletedFrameworks() ([]*Framework, error) {
+	state, err := m.state()
+	if err != nil {
+		return []*Framework{}, err
+	}
+
+	return state.CompletedFrameworks, nil
+}
+
 func (m Mesos) Shutdown(frameworkId string) error {
 	log.Debugf("Shutting down framework: %s", frameworkId)
 	data := fmt.Sprintf("frameworkId=%s", frameworkId)
@@ -64,6 +93,7 @@ func (m Mesos) Shutdown(frameworkId string) error {
 		return err
 	}
 	if httpReq.Response.StatusCode == 200 {
+		log.Debugf(httpReq.ResponseText)
 		return nil
 	} else {
 		responseText := httpReq.ResponseText
@@ -154,4 +184,21 @@ func (m Mesos) state() (*State, error) {
 	state := &State{}
 	err = json.Unmarshal(body, state)
 	return state, err
+}
+
+func readSecret(path string) string {
+	secret := ""
+	if len(path) > 0 {
+		if _, err := os.Stat(path); err == nil {
+			data, err := ioutil.ReadFile(path)
+			if err != nil {
+				log.Fatalf("Could not read secret from %s: %v", path, err)
+			} else {
+				secret = strings.TrimSpace(string(data))
+			}
+		} else {
+			log.Fatalf("Secret file %s does not exist", path)
+		}
+	}
+	return secret
 }

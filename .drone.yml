@@ -1,4 +1,23 @@
 build:
-  image: golang
+  image: golang:1.5.3
   commands:
     - make test
+publish:
+  docker:
+    username: $$DOCKER_USERNAME
+    password: $$DOCKER_PASSWORD
+    email: $$DOCKER_EMAIL
+    repo: ciscocloud/mantl-api
+    tag: edge
+    when:
+      branch: master
+  docker:
+    username: $$DOCKER_USERNAME
+    password: $$DOCKER_PASSWORD
+    email: $$DOCKER_EMAIL
+    repo: ciscocloud/mantl-api
+    tag:
+      - $$TAG
+      - latest
+    when:
+      event: tag
