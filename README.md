@@ -35,8 +35,8 @@ Currently, Mantl API allows you to install and uninstall [DCOS packages](https:/
         - [GET /health](#get-health)
         - [GET /1/packages](#get-1packages)
         - [GET /1/packages/<package>](#get-1packagespackage)
-        - [POST /1/installs](#post-1installs)
-        - [DELETE /1/installs](#delete-1installs)
+        - [POST /1/install](#post-1install)
+        - [DELETE /1/install](#delete-1install)
         - [GET /1/frameworks](#get-1frameworks)
         - [DELETE /1/frameworks/:id](#delete-1frameworksid)
     - [Comparison to Other Software](#comparison-to-other-software)
@@ -333,7 +333,7 @@ As shown above, you should have a copy of a valid repository on your local file 
 Then, you should be able to install your package using normal Mantl API calls. For example:
 
 ```shell
-curl -X POST -d "{\"name\": \"mycustompackage\"}" http://localhost:4001/api/1/installs
+curl -X POST -d "{\"name\": \"mycustompackage\"}" http://localhost:4001/api/1/install
 ```
 
 ## Usage
@@ -371,8 +371,8 @@ After a moment, Cassandra will have been removed from your cluster. This will al
  `/health`           | GET    | health check - returns `OK` with an HTTP 200 status
  `/1/packages`       | GET    | list available packages
  `/1/packages/:name` | GET    | provides information about a specific package
- `/1/installs`       | POST   | install a package
- `/1/installs`       | DELETE | uninstalls a specific package
+ `/1/install`        | POST   | install a package
+ `/1/install`        | DELETE | uninstalls a specific package
  `/1/frameworks`     | GET    | lists mesos frameworks
  `/1/frameworks/:id` | DELETE | shuts down a running mesos framework
  
@@ -482,12 +482,12 @@ curl http://mantl-control-01/api/1/packages/cassandra | jq .
 }
 ```
 
-### POST /1/installs
+### POST /1/install
 
-`POST /1/installs`: post a JSON representation of a package to install.
+`POST /1/install`: post a JSON representation of a package to install.
 
 ```shell
-curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/installs | jq .
+curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/install | jq .
 ```
 
 ```json
@@ -589,12 +589,12 @@ curl -X POST -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/instal
 }
 ```
 
-### DELETE /1/installs
+### DELETE /1/install
 
-`DELETE /1/installs`: post a JSON representation of package specific uninstall options.
+`DELETE /1/install`: post a JSON representation of package specific uninstall options.
 
 ```shell
-curl -X DELETE -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/installs
+curl -X DELETE -d "{\"name\": \"cassandra\"}" http://mantl-control-01/api/1/install
 ```
 
 ### GET /1/frameworks
