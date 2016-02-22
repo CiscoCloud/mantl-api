@@ -197,7 +197,7 @@ func readSecret(path string) string {
 				secret = strings.TrimSpace(string(data))
 			}
 		} else {
-			log.Fatalf("Secret file %s does not exist", path)
+			log.Warnf("Secret file %s does not exist", path)
 		}
 	}
 	return secret
