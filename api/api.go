@@ -3,15 +3,17 @@ package api
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/CiscoCloud/mantl-api/install"
-	"github.com/CiscoCloud/mantl-api/mesos"
-	log "github.com/Sirupsen/logrus"
-	"github.com/julienschmidt/httprouter"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"sync"
 	"time"
+
+	"github.com/CiscoCloud/mantl-api/install"
+	"github.com/CiscoCloud/mantl-api/mesos"
+	log "github.com/Sirupsen/logrus"
+	"github.com/julienschmidt/httprouter"
 )
 
 var agent string
@@ -20,6 +22,7 @@ type Api struct {
 	listen  string
 	install *install.Install
 	mesos   *mesos.Mesos
+	wg      sync.WaitGroup
 }
 
 func init() {
@@ -30,11 +33,11 @@ func init() {
 	}
 }
 
-func NewApi(id string, listen string, install *install.Install, mesos *mesos.Mesos) *Api {
+func NewApi(id string, listen string, install *install.Install, mesos *mesos.Mesos, wg sync.WaitGroup) *Api {
 	if id != "" {
 		agent = fmt.Sprintf("%s.%s", id, agent)
 	}
-	return &Api{listen, install, mesos}
+	return &Api{listen, install, mesos, wg}
 }
 
 func logHandler(handler http.Handler) http.Handler {
@@ -55,6 +58,10 @@ func deprecate(handle httprouter.Handle, msg string) httprouter.Handle {
 }
 
 func (api *Api) Start() {
+	defer func() {
+		api.wg.Done()
+	}()
+
 	router := httprouter.New()
 	router.GET("/health", api.health)
 

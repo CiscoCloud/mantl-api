@@ -3,6 +3,11 @@ package main
 import (
 	"crypto/tls"
 	"fmt"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/CiscoCloud/mantl-api/api"
 	"github.com/CiscoCloud/mantl-api/install"
 	"github.com/CiscoCloud/mantl-api/marathon"
@@ -15,12 +20,12 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
-	"os"
-	"strings"
 )
 
 const Name = "mantl-api"
 const Version = "0.1.5"
+
+var wg sync.WaitGroup
 
 func main() {
 	rootCmd := &cobra.Command{
@@ -52,6 +57,7 @@ func main() {
 	rootCmd.PersistentFlags().String("zookeeper", "", "Comma-delimited list of zookeeper servers")
 	rootCmd.PersistentFlags().Bool("force-sync", false, "Force a synchronization of all sources")
 	rootCmd.PersistentFlags().String("config-file", "", "The path to a configuration file")
+	rootCmd.PersistentFlags().Int("consul-refresh-interval", 10, "The number of seconds after which to check consul for package requests")
 
 	for _, flags := range []*pflag.FlagSet{rootCmd.PersistentFlags()} {
 		err := viper.BindPFlags(flags)
@@ -69,7 +75,7 @@ func main() {
 		Short: "Synchronize universe repositories",
 		Long:  "Forces a synchronization of all configured sources",
 		Run: func(cmd *cobra.Command, args []string) {
-			sync(nil, true)
+			syncRepo(nil, true)
 		},
 	}
 	rootCmd.AddCommand(syncCommand)
@@ -131,10 +137,12 @@ func start() {
 	}
 
 	// sync sources to consul
-	sync(inst, viper.GetBool("force-sync"))
+	syncRepo(inst, viper.GetBool("force-sync"))
 
-	// start listener
-	api.NewApi(Name, viper.GetString("listen"), inst, mesosClient).Start()
+	wg.Add(1)
+	go inst.Watch(time.Duration(viper.GetInt("consul-refresh-interval")))
+	go api.NewApi(Name, viper.GetString("listen"), inst, mesosClient, wg).Start()
+	wg.Wait()
 }
 
 func consulClient() *consul.Client {
@@ -176,7 +184,7 @@ func testConsul(client *consul.Client) error {
 	return err
 }
 
-func sync(inst *install.Install, force bool) {
+func syncRepo(inst *install.Install, force bool) {
 	var err error
 	if inst == nil {
 		client := consulClient()

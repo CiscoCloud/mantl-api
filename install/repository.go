@@ -2,14 +2,18 @@ package install
 
 import (
 	"fmt"
-	log "github.com/Sirupsen/logrus"
 	"path"
 	"sort"
 	"strconv"
 	"strings"
+
+	log "github.com/Sirupsen/logrus"
 )
 
-const RepositoryRoot = "mantl-install/repository"
+const (
+	RepositoryRoot = "mantl-install/repository"
+	AppsRoot       = "mantl-install/apps/"
+)
 
 type Repository struct {
 	Name  string
