@@ -243,7 +243,9 @@ func syncRepo(inst *install.Install, force bool) {
 		sources = defaultSources
 	}
 
-	inst.SyncSources(sources, force)
+	if err := inst.SyncSources(sources, force); err != nil {
+		log.Fatal(err)
+	}
 }
 
 func readConfigFile() {
