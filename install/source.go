@@ -3,14 +3,15 @@ package install
 import (
 	"errors"
 	"fmt"
-	log "github.com/Sirupsen/logrus"
-	consul "github.com/hashicorp/consul/api"
 	"io/ioutil"
 	"os"
 	"os/exec"
 	"path"
 	"path/filepath"
 	"time"
+
+	log "github.com/Sirupsen/logrus"
+	consul "github.com/hashicorp/consul/api"
 )
 
 const (
@@ -59,19 +60,22 @@ func (install *Install) sourceLastUpdated(source *Source) (time.Time, error) {
 func (install *Install) sync(source *Source, sourcePath string) error {
 	// TODO: lock or something to prevent simultaneous syncs?
 	err := filepath.Walk(sourcePath, func(filePath string, f os.FileInfo, e error) error {
+		var err error
+		var relkey string
 		if isSourceArtifact(filePath) {
-			relkey, err := filepath.Rel(sourcePath, filePath)
+			var data []byte
+			relkey, err = filepath.Rel(sourcePath, filePath)
 			if err == nil {
-				data, err := ioutil.ReadFile(filePath)
+				data, err = ioutil.ReadFile(filePath)
 				if err == nil {
 					key := path.Join(source.rootKey(), relkey)
-					install.addSourceArtifact(key, data)
+					err = install.addSourceArtifact(key, data)
 				} else {
 					log.Errorf("Could not read file %v: %v", filePath, err)
 				}
 			}
 		}
-		return nil
+		return err
 	})
 
 	if err != nil {
@@ -143,14 +147,13 @@ func (install *Install) setTimestamp(source *Source) error {
 	return err
 }
 
-func (install *Install) addSourceArtifact(key string, data []byte) {
+func (install *Install) addSourceArtifact(key string, data []byte) error {
 	kp := &consul.KVPair{Key: key, Value: data}
 	_, err := install.kv.Put(kp, nil)
 	if err == nil {
 		log.Debugf("Wrote %v", key)
-	} else {
-		log.Errorf("Could not write %v to KV: %v", key, err)
 	}
+	return err
 }
 
 func isSourceArtifact(filePath string) bool {
