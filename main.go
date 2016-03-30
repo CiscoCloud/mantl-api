@@ -23,7 +23,7 @@ import (
 )
 
 const Name = "mantl-api"
-const Version = "0.1.7"
+const Version = "0.1.8"
 
 var wg sync.WaitGroup
 
@@ -199,7 +199,7 @@ func syncRepo(inst *install.Install, force bool) {
 			Name:       "mantl",
 			Path:       "https://github.com/CiscoCloud/mantl-universe.git",
 			SourceType: install.Git,
-			Branch:     "version-0.6",
+			Branch:     "version-0.7",
 			Index:      0,
 		},
 	}

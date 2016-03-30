@@ -347,6 +347,10 @@ func (install *Install) GetPackageDefinition(name string, version string, userCo
 		return nil, err
 	}
 
+	if pkg == nil {
+		return nil, errors.New(fmt.Sprintf("Could not find %s package", name))
+	}
+
 	pkgVersion := pkg.FindPackageVersion(version)
 	if pkgVersion == nil {
 		return nil, errors.New(fmt.Sprintf("Could not find installable version for %s", name))
@@ -443,6 +447,8 @@ func transformedConfigValue(val interface{}, typ string) interface{} {
 		switch typ {
 		case "integer":
 			return fmt.Sprintf("%d", int(val.(float64)))
+		case "number":
+			return fmt.Sprintf("%0.2f", val.(float64))
 		default:
 			return val
 		}
