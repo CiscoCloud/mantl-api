@@ -211,6 +211,13 @@ func (d packageDefinition) ConfigSchema() (packageConfigGroup, error) {
 }
 
 func (d packageDefinition) Options() (map[string]interface{}, error) {
+	schema, err := d.ConfigSchema()
+
+	if err != nil {
+		log.Errorf("Could not retrieve configuration schema")
+		return nil, err
+	}
+
 	var options map[string]interface{}
 	if len(d.optionsJson) > 0 {
 		// Render options
@@ -230,10 +237,10 @@ func (d packageDefinition) Options() (map[string]interface{}, error) {
 		}
 
 		// merge user config
-		mergeConfig(options, d.userConfig)
+		mergeConfig(options, d.userConfig, schema)
 
 		// add api config to options
-		mergeConfig(options, d.apiConfig)
+		mergeConfig(options, d.apiConfig, schema)
 	}
 
 	return options, nil
@@ -256,7 +263,7 @@ func (d packageDefinition) MergedConfig() (map[string]interface{}, error) {
 
 	config := schema.defaultConfig()
 
-	return mergeConfig(config, options), nil
+	return mergeConfig(config, options, schema), nil
 }
 
 func (d packageDefinition) MarathonAppJson() (string, error) {
@@ -446,8 +453,14 @@ func transformedConfigValue(val interface{}, typ string) interface{} {
 	} else {
 		switch typ {
 		case "integer":
+			if _, ok := val.(string); ok { // already been converted
+				return val
+			}
 			return fmt.Sprintf("%d", int(val.(float64)))
 		case "number":
+			if _, ok := val.(string); ok { // already been converted
+				return val
+			}
 			return fmt.Sprintf("%0.2f", val.(float64))
 		default:
 			return val
@@ -455,15 +468,22 @@ func transformedConfigValue(val interface{}, typ string) interface{} {
 	}
 }
 
-func mergeConfig(config map[string]interface{}, override map[string]interface{}) map[string]interface{} {
+func mergeConfig(config map[string]interface{}, override map[string]interface{}, schema packageConfigGroup) map[string]interface{} {
 	for k, v := range override {
 		_, configExists := config[k]
+
+		valType := ""
+		valSchema, foundValSchema := schema.Properties[k]
+		if foundValSchema {
+			valType = valSchema.Type
+		}
+
 		configVal, configValIsMap := config[k].(map[string]interface{})
 		overrideVal, overrideValIsMap := v.(map[string]interface{})
 		if configExists && configValIsMap && overrideValIsMap {
-			config[k] = mergeConfig(configVal, overrideVal)
+			config[k] = mergeConfig(configVal, overrideVal, valSchema)
 		} else {
-			config[k] = transformedConfigValue(v, "")
+			config[k] = transformedConfigValue(v, valType)
 		}
 	}
 
