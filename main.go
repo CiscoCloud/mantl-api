@@ -23,7 +23,7 @@ import (
 )
 
 const Name = "mantl-api"
-const Version = "0.1.8"
+const Version = "0.1.9"
 
 var wg sync.WaitGroup
 
