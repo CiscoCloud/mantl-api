@@ -162,14 +162,14 @@ type packageConfigGroup struct {
 	Default              interface{}                   `json:"default"`
 }
 
-func (g packageConfigGroup) defaultConfig() map[string]interface{} {
+func (g packageConfigGroup) defaultConfig(d packageDefinition) map[string]interface{} {
 	defaults := make(map[string]interface{})
 
 	for groupName, group := range g.Properties {
 		if group.Default != nil {
-			defaults[groupName] = transformedConfigValue(group.Default, group.Type)
+			defaults[groupName] = d.transformedConfigValue(group.Default, group.Type)
 		} else if group.Type == "object" {
-			defaults[groupName] = group.defaultConfig()
+			defaults[groupName] = group.defaultConfig(d)
 		}
 	}
 
@@ -177,19 +177,20 @@ func (g packageConfigGroup) defaultConfig() map[string]interface{} {
 }
 
 type packageDefinition struct {
-	commandJson   []byte
-	configJson    []byte
-	marathonJson  []byte
-	packageJson   []byte
-	optionsJson   []byte
-	uninstallJson []byte
-	apiConfig     map[string]interface{}
-	userConfig    map[string]interface{}
-	name          string
-	version       string
-	release       string
-	framework     bool
-	frameworkName string
+	commandJson       []byte
+	configJson        []byte
+	marathonJson      []byte
+	packageJson       []byte
+	optionsJson       []byte
+	uninstallJson     []byte
+	apiConfig         map[string]interface{}
+	userConfig        map[string]interface{}
+	name              string
+	version           string
+	release           string
+	framework         bool
+	frameworkName     string
+	valueTransformers map[string][]valueTransformer
 }
 
 func (d packageDefinition) IsValid() bool {
@@ -237,10 +238,10 @@ func (d packageDefinition) Options() (map[string]interface{}, error) {
 		}
 
 		// merge user config
-		mergeConfig(options, d.userConfig, schema)
+		d.mergeConfig(options, d.userConfig, schema)
 
 		// add api config to options
-		mergeConfig(options, d.apiConfig, schema)
+		d.mergeConfig(options, d.apiConfig, schema)
 	}
 
 	return options, nil
@@ -261,9 +262,9 @@ func (d packageDefinition) MergedConfig() (map[string]interface{}, error) {
 		return nil, err
 	}
 
-	config := schema.defaultConfig()
+	config := schema.defaultConfig(d)
 
-	return mergeConfig(config, options, schema), nil
+	return d.mergeConfig(config, options, schema), nil
 }
 
 func (d packageDefinition) MarathonAppJson() (string, error) {
@@ -369,12 +370,13 @@ func (install *Install) GetPackageDefinition(name string, version string, userCo
 	}
 
 	pkgDef := &packageDefinition{
-		name:       pkg.Name,
-		version:    pkgVersion.Version,
-		release:    pkgVersion.Index,
-		framework:  pkg.Framework,
-		apiConfig:  apiConfig,
-		userConfig: userConfig,
+		name:              pkg.Name,
+		version:           pkgVersion.Version,
+		release:           pkgVersion.Index,
+		framework:         pkg.Framework,
+		apiConfig:         apiConfig,
+		userConfig:        userConfig,
+		valueTransformers: valueTransformers,
 	}
 
 	for _, repo := range repositories {
@@ -439,7 +441,7 @@ func (install *Install) getPackageDefinitionFile(name string, key string) []byte
 	return []byte{}
 }
 
-func transformedConfigValue(val interface{}, typ string) interface{} {
+func (d packageDefinition) transformedConfigValue(val interface{}, typ string) interface{} {
 	// TODO: probably should use the config schema for this
 	if slice, ok := val.([]interface{}); ok {
 		// if the config val is an array, convert it to a json representation
@@ -451,24 +453,14 @@ func transformedConfigValue(val interface{}, typ string) interface{} {
 			return val
 		}
 	} else {
-		switch typ {
-		case "integer":
-			if _, ok := val.(string); ok { // already been converted
-				return val
-			}
-			return fmt.Sprintf("%d", int(val.(float64)))
-		case "number":
-			if _, ok := val.(string); ok { // already been converted
-				return val
-			}
-			return fmt.Sprintf("%0.2f", val.(float64))
-		default:
-			return val
+		for _, fn := range d.valueTransformers[typ] {
+			val = fn(val, d)
 		}
+		return val
 	}
 }
 
-func mergeConfig(config map[string]interface{}, override map[string]interface{}, schema packageConfigGroup) map[string]interface{} {
+func (d packageDefinition) mergeConfig(config map[string]interface{}, override map[string]interface{}, schema packageConfigGroup) map[string]interface{} {
 	for k, v := range override {
 		_, configExists := config[k]
 
@@ -481,9 +473,9 @@ func mergeConfig(config map[string]interface{}, override map[string]interface{},
 		configVal, configValIsMap := config[k].(map[string]interface{})
 		overrideVal, overrideValIsMap := v.(map[string]interface{})
 		if configExists && configValIsMap && overrideValIsMap {
-			config[k] = mergeConfig(configVal, overrideVal, valSchema)
+			config[k] = d.mergeConfig(configVal, overrideVal, valSchema)
 		} else {
-			config[k] = transformedConfigValue(v, valType)
+			config[k] = d.transformedConfigValue(v, valType)
 		}
 	}
 

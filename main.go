@@ -13,7 +13,6 @@ import (
 	"github.com/CiscoCloud/mantl-api/marathon"
 	"github.com/CiscoCloud/mantl-api/mesos"
 	"github.com/CiscoCloud/mantl-api/utils/http"
-	"github.com/CiscoCloud/mantl-api/zookeeper"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-cleanhttp"
@@ -144,9 +143,8 @@ func start() {
 	} else {
 		zkHosts = strings.Split(zkUrls, ",")
 	}
-	zk := zookeeper.NewZookeeper(zkHosts)
 
-	inst, err := install.NewInstall(client, marathonClient, mesosClient, zk)
+	inst, err := install.NewInstall(client, marathonClient, mesosClient, zkHosts)
 	if err != nil {
 		log.Fatalf("Could not create install client: %v", err)
 	}
