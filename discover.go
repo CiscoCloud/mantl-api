@@ -32,7 +32,7 @@ func discover(client *consul.Client, r *discoveryRecord) {
 
 	var hosts []string
 	for _, svc := range services {
-		host := svc.Address
+		host := svc.Node
 		port := svc.ServicePort
 		location := fmt.Sprintf("%s:%d", host, port)
 		hosts = append(hosts, location)
