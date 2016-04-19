@@ -3,7 +3,6 @@ package install
 import (
 	"github.com/stretchr/testify/assert"
 	"sort"
-	"strings"
 	"testing"
 )
 
@@ -318,6 +317,20 @@ var marathonJson = `
 }
 `
 
+var localApiConfig = map[string]interface{}{
+	"mantl": map[string]interface{}{
+		"zookeeper": map[string]interface{}{
+			"hosts": "10.0.0.1:2181,10.0.0.2:2181",
+		},
+		"mesos": map[string]interface{}{
+			"principal":              "mesos-principal",
+			"secret":                 "mesos-secret",
+			"secret-path":            "/etc/sysconfig/mesos-principal",
+			"authentication-enabled": true,
+		},
+	},
+}
+
 func TestPackageVersionByMostRecent(t *testing.T) {
 	t.Parallel()
 
@@ -445,62 +458,61 @@ func TestConfigSchemaType(t *testing.T) {
 func TestExtractDefaultValues(t *testing.T) {
 	t.Parallel()
 
-	pkgDef := &packageDefinition{configJson: []byte(configJson)}
+	pkgDef := &packageDefinition{
+		configJson:        []byte(configJson),
+		valueTransformers: valueTransformers,
+	}
 	schema, _ := pkgDef.ConfigSchema()
-	defaults := schema.defaultConfig()
+	defaults := schema.defaultConfig(*pkgDef)
 
 	assert.Equal(t, "zk://master.mesos:2181/mesos", getConfigVal(defaults, "mesos", "master"))
 	assert.Equal(t, ".", getConfigVal(defaults, "cassandra", "data-directory"))
 	assert.Equal(t, "dcos", getConfigVal(defaults, "cassandra", "cluster-name"))
 	assert.Equal(t, false, getConfigVal(defaults, "cassandra", "framework", "authentication", "enabled"))
+	assert.Equal(t, "0.10", getConfigVal(defaults, "cassandra", "resources", "cpus"))
 }
 
 func TestMergeOptions(t *testing.T) {
 	t.Parallel()
 
 	pkgDef := &packageDefinition{
-		configJson:  []byte(configJson),
-		optionsJson: []byte(optionsJson),
+		configJson:        []byte(configJson),
+		optionsJson:       []byte(optionsJson),
+		apiConfig:         localApiConfig,
+		valueTransformers: valueTransformers,
 	}
 
 	merged, _ := pkgDef.MergedConfig()
 
-	assert.Equal(t, "zk://zookeeper.service.consul:2181/mesos", getConfigVal(merged, "mesos", "master"))
+	assert.Equal(t, "zk://10.0.0.1:2181,10.0.0.2:2181/mesos", getConfigVal(merged, "mesos", "master"))
 	assert.Equal(t, 0.0, getConfigVal(merged, "mesos", "added-config"))
 	assert.Equal(t, "dcos-test", getConfigVal(merged, "cassandra", "cluster-name"))
-	assert.Equal(t, "zk://zookeeper.service.consul:2181/cassandra-mesos/dcos-test", getConfigVal(merged, "cassandra", "zk"))
+	assert.Equal(t, "zk://10.0.0.1:2181,10.0.0.2:2181/cassandra-mesos/dcos-test", getConfigVal(merged, "cassandra", "zk"))
 	assert.Equal(t, true, getConfigVal(merged, "cassandra", "framework", "authentication", "enabled"))
 	assert.Equal(t, "31536000", getConfigVal(merged, "cassandra", "framework", "failover-timeout-seconds"))
+	assert.Equal(t, "0.10", getConfigVal(merged, "cassandra", "resources", "cpus"))
 }
 
 func TestMarathon(t *testing.T) {
 	t.Parallel()
 
-	apiConfig := map[string]interface{}{
-		"mantl": map[string]interface{}{
-			"mesos": map[string]interface{}{
-				"principal":              "mesos-principal",
-				"secret":                 "mesos-secret",
-				"secret-path":            "/etc/sysconfig/mesos-principal",
-				"authentication-enabled": true,
-			},
-		},
-	}
-
 	pkgDef := &packageDefinition{
-		configJson:   []byte(configJson),
-		optionsJson:  []byte(optionsJson),
-		marathonJson: []byte(marathonJson),
-		apiConfig:    apiConfig,
+		configJson:        []byte(configJson),
+		optionsJson:       []byte(optionsJson),
+		marathonJson:      []byte(marathonJson),
+		apiConfig:         localApiConfig,
+		valueTransformers: valueTransformers,
 	}
 
 	marathon, _ := pkgDef.MarathonAppJson()
-	assert.True(t, strings.Contains(marathon, "\"id\": \"/cassandra/dcos-test\","))
-	assert.True(t, strings.Contains(marathon, "\"MESOS_ZK\": \"zk://zookeeper.service.consul:2181/mesos\""))
-	assert.True(t, strings.Contains(marathon, "\"MESOS_AUTHENTICATE\": \"true\""))
-	assert.True(t, strings.Contains(marathon, "\"DEFAULT_PRINCIPAL\": \"mesos-principal\""))
-	assert.True(t, strings.Contains(marathon, "\"DEFAULT_SECRET\": \"mesos-secret\""))
-	assert.True(t, strings.Contains(marathon, "\"MESOS_SECRET_PATH\": \"/etc/sysconfig/mesos-principal\""))
+	assert.Contains(t, marathon, "\"id\": \"/cassandra/dcos-test\",", "should contain id")
+	assert.Contains(t, marathon, "\"MESOS_AUTHENTICATE\": \"true\"", "should contain MESOS_AUTHENTICATE")
+	assert.Contains(t, marathon, "\"DEFAULT_PRINCIPAL\": \"mesos-principal\"", "should contain DEFAULT_PRINCIPAL")
+	assert.Contains(t, marathon, "\"DEFAULT_SECRET\": \"mesos-secret\"", "should contain DEFAULT_SECRET")
+	assert.Contains(t, marathon, "\"MESOS_SECRET_PATH\": \"/etc/sysconfig/mesos-principal\"", "should contain MESOS_SECRET_PATH")
+
+	assert.Contains(t, marathon, "\"MESOS_ZK\": \"zk://10.0.0.1:2181,10.0.0.2:2181/mesos\"", "should contain MESOS_ZK")
+	assert.Contains(t, marathon, "\"CASSANDRA_ZK\": \"zk://10.0.0.1:2181,10.0.0.2:2181/cassandra-mesos/dcos-test\"", "should contain CASSANDRA_ZK")
 }
 
 func TestUserConfig(t *testing.T) {

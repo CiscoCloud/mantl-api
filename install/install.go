@@ -32,25 +32,33 @@ type Install struct {
 	zookeeper *zookeeper.Zookeeper
 }
 
-func NewInstall(consulClient *consul.Client, marathon *marathon.Marathon, mesos *mesos.Mesos, zookeeper *zookeeper.Zookeeper) (*Install, error) {
+func NewInstall(consulClient *consul.Client, marathon *marathon.Marathon, mesos *mesos.Mesos, zkHosts []string) (*Install, error) {
+	apiConfig = map[string]interface{}{
+		"mantl": map[string]interface{}{
+			"zookeeper": map[string]interface{}{
+				"hosts": strings.Join(zkHosts, ","),
+			},
+		},
+	}
+
 	if mesos != nil {
 		mesosAuthRequired, err := mesos.RequiresAuthentication()
 		if err != nil {
 			return nil, err
 		}
 
-		apiConfig = map[string]interface{}{
-			"mantl": map[string]interface{}{
-				"mesos": map[string]interface{}{
-					"principal":              mesos.Principal,
-					"secret":                 mesos.Secret,
-					"secret-path":            mesos.SecretPath,
-					"authentication-enabled": mesosAuthRequired,
-				},
-			},
+		mesosConfig := map[string]interface{}{
+			"principal":              mesos.Principal,
+			"secret":                 mesos.Secret,
+			"secret-path":            mesos.SecretPath,
+			"authentication-enabled": mesosAuthRequired,
 		}
+
+		mantlConfig := apiConfig["mantl"].(map[string]interface{})
+		mantlConfig["mesos"] = mesosConfig
 	}
 
+	zookeeper := zookeeper.NewZookeeper(zkHosts)
 	return &Install{consulClient, consulClient.KV(), marathon, mesos, zookeeper}, nil
 }
 

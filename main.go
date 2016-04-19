@@ -13,7 +13,6 @@ import (
 	"github.com/CiscoCloud/mantl-api/marathon"
 	"github.com/CiscoCloud/mantl-api/mesos"
 	"github.com/CiscoCloud/mantl-api/utils/http"
-	"github.com/CiscoCloud/mantl-api/zookeeper"
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-cleanhttp"
@@ -23,7 +22,7 @@ import (
 )
 
 const Name = "mantl-api"
-const Version = "0.1.9"
+const Version = "0.2.0"
 
 var wg sync.WaitGroup
 
@@ -98,7 +97,12 @@ func start() {
 
 	marathonUrl := viper.GetString("marathon")
 	if marathonUrl == "" {
-		marathonUrl = NewDiscovery(client, "marathon", "", "http", "http://localhost:8080").discoveredUrl
+		marathonHosts := NewDiscovery(client, "marathon", "").discoveredHosts
+		if len(marathonHosts) > 0 {
+			marathonUrl = fmt.Sprintf("http://%s", marathonHosts[0])
+		} else {
+			marathonUrl = "http://localhost:8080"
+		}
 	}
 	marathonClient, err := marathon.NewMarathon(
 		marathonUrl,
@@ -112,7 +116,12 @@ func start() {
 
 	mesosUrl := viper.GetString("mesos")
 	if mesosUrl == "" {
-		mesosUrl = NewDiscovery(client, "mesos", "leader", "http", "http://localhost:5050").discoveredUrl
+		mesosHosts := NewDiscovery(client, "mesos", "leader").discoveredHosts
+		if len(mesosHosts) > 0 {
+			mesosUrl = fmt.Sprintf("http://%s", mesosHosts[0])
+		} else {
+			mesosUrl = "http://locahost:5050"
+		}
 	}
 	mesosClient, err := mesos.NewMesos(
 		mesosUrl,
@@ -124,14 +133,18 @@ func start() {
 		log.Fatalf("Could not create mesos client: %v", err)
 	}
 
+	var zkHosts []string
 	zkUrls := viper.GetString("zookeeper")
 	if zkUrls == "" {
-		zkUrls = NewDiscovery(client, "zookeeper", "", "", "localhost:2181").discoveredUrl
+		zkHosts = NewDiscovery(client, "zookeeper", "").discoveredHosts
+		if len(zkHosts) == 0 {
+			zkHosts = []string{"locahost:2181"}
+		}
+	} else {
+		zkHosts = strings.Split(zkUrls, ",")
 	}
-	zkServers := strings.Split(zkUrls, ",")
-	zk := zookeeper.NewZookeeper(zkServers)
 
-	inst, err := install.NewInstall(client, marathonClient, mesosClient, zk)
+	inst, err := install.NewInstall(client, marathonClient, mesosClient, zkHosts)
 	if err != nil {
 		log.Fatalf("Could not create install client: %v", err)
 	}
