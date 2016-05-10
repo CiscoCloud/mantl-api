@@ -78,8 +78,12 @@ func (c packageCatalog) packagesIndex() (PackageCollection, error) {
 
 			meta := c.packageMeta(key)
 			if meta != nil {
-				pkg.Description = meta["description"].(string)
-				pkg.Framework = meta["framework"].(bool)
+				if desc, ok := meta["description"]; ok {
+					pkg.Description = desc.(string)
+				}
+				if isFramework, ok := meta["framework"]; ok {
+					pkg.Framework = isFramework.(bool)
+				}
 
 				if tagList, ok := meta["tags"].([]interface{}); ok {
 					tags := make([]string, len(tagList))
