@@ -26,6 +26,7 @@ test: deps quicktest
 	go vet $(TEST)
 
 docker: deps
+	find . -name ".DS_Store" -depth -exec rm {} \;
 	docker build -t $(DOCKERREPO)/$(NAME) .
 	docker tag -f $(DOCKERREPO)/$(NAME) $(DOCKERREPO)/$(NAME):$(VERSION)
 
