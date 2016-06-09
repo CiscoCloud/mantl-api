@@ -4,12 +4,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/CiscoCloud/mantl-api/utils/http"
-	log "github.com/Sirupsen/logrus"
 	"io/ioutil"
 	"os"
 	"strconv"
 	"strings"
+
+	"github.com/CiscoCloud/mantl-api/utils/http"
+	log "github.com/Sirupsen/logrus"
 )
 
 type Mesos struct {
@@ -102,7 +103,6 @@ func (m Mesos) Shutdown(frameworkId string) error {
 }
 
 func (m Mesos) ShutdownFrameworkByName(name string) error {
-	log.Debugf("Looking for %s framework", name)
 
 	// find mesos framework
 	fw, err := m.FindFramework(name)
@@ -125,9 +125,11 @@ func (m Mesos) FindFrameworks(name string) ([]*Framework, error) {
 		return []*Framework{}, err
 	}
 
+	log.Debugf("mesos.FindFrameworks: looking for framework %s", name)
 	matching := make(map[string]*Framework)
 	for _, fw := range state.Frameworks {
-		if fw.Name == name && fw.Active {
+		log.Debugf("mesos.FindFrameworks: framework %s - %s - %t", fw.Name, fw.ID, fw.Active)
+		if strings.EqualFold(fw.Name, name) {
 			matching[fw.ID] = fw
 		}
 	}
