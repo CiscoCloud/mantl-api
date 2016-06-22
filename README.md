@@ -120,10 +120,11 @@ After a few moments, Mantl API should be running on your cluster.
 ### Options
 
  Argument                 | Default                                                                   | Description
---------------------------|---------------------------------------------------------------------------|---------------------------------------------------------------
+--------------------------|---------------------------------------------------------------------------|----------------------------------------------------------------------------
  `log-level`              | info                                                                      | one of debug, info, warn, error, or fatal
  `log-format`             | text                                                                      | specify output (text or json)
  `consul`                 | http://localhost:8500                                                     | Consul API address
+ `consul-acl-token`       | None                                                                      | When specified, mantl-api will use this token to access the Consul K/V
  `consul-no-verify-ssl`   | False                                                                     | When True, disables SSL verification for the Consul API
  `marathon`               | Discovered via a `marathon` service registered in Consul                  | Marathon API address
  `marathon-user`          | None                                                                      | Marathon API user
@@ -189,7 +190,7 @@ The order of the repositories is important. By default, Mantl Universe is config
  Mantl Universe       | mantl-install/repository/0
  Custom Repository    | mantl-install/repository/1
 
-Repositories with higher indexes are prioritized. When Mantl API receives a request to install a particular package, it will use the package definition found in the repository with the highest index. If there are any required files missing, it will look for the corresponding package version in repositories with the lower indexes until it is able to construct a valid, installable package. For example, if `mantl-install/repository/1/repo/packages/H/hdfs/1` (Custom Repository) exists but does not have a `config.json` file, Mantl API will merge in the `config.json` file from `mantl-install/repository/0/repo/packages/H/hdfs/1` (Mantl Universe). This enables the ability to make small package customizations rather than creating an entirely new version of a package. 
+Repositories with higher indexes are prioritized. When Mantl API receives a request to install a particular package, it will use the package definition found in the repository with the highest index. If there are any required files missing, it will look for the corresponding package version in repositories with the lower indexes until it is able to construct a valid, installable package. For example, if `mantl-install/repository/1/repo/packages/H/hdfs/1` (Custom Repository) exists but does not have a `config.json` file, Mantl API will merge in the `config.json` file from `mantl-install/repository/0/repo/packages/H/hdfs/1` (Mantl Universe). This enables the ability to make small package customizations rather than creating an entirely new version of a package.
 
 ### Configuring Sources
 
@@ -314,7 +315,7 @@ path = "/Users/ryan/Projects/mantl-universe"
 index = 0
 ```
 
-You will need to update the URLs and credentials as appropriate for your cluster. 
+You will need to update the URLs and credentials as appropriate for your cluster.
 
 Finally, you will need to update firewalls and security groups so that your development machine has access to the above ports.
 
@@ -375,7 +376,7 @@ After a moment, Cassandra will have been removed from your cluster. This will al
  `/1/install`        | DELETE | uninstalls a specific package
  `/1/frameworks`     | GET    | lists mesos frameworks
  `/1/frameworks/:id` | DELETE | shuts down a running mesos framework
- 
+
 ### GET /health
 
 `GET /health`: returns `OK`
