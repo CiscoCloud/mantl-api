@@ -117,27 +117,36 @@ You will need to replace `admin:mantlpw` with valid Marathon credentials (see `m
 
 After a few moments, Mantl API should be running on your cluster.
 
+### Usage with Vault
+
+When configured with either `vault-token` or `vault-cubbyhole-token`, mantl-api will contact Vault to retrieve its secrets. They should be stored at secret/mantl-api. mantl-api will look for the following keys within that secret's `Data` field: mesos-principal, mesos-secret, marathon-user, and marathon-password. You don't have to store all of your secrets in Vault to take advantage of this feature, mantl-api will only use the ones that are present.
+
 ### Options
 
- Argument                 | Default                                                                   | Description
---------------------------|---------------------------------------------------------------------------|----------------------------------------------------------------------------
- `log-level`              | info                                                                      | one of debug, info, warn, error, or fatal
- `log-format`             | text                                                                      | specify output (text or json)
- `consul`                 | http://localhost:8500                                                     | Consul API address
- `consul-acl-token`       | None                                                                      | When specified, mantl-api will use this token to access the Consul K/V
- `consul-no-verify-ssl`   | False                                                                     | When True, disables SSL verification for the Consul API
- `marathon`               | Discovered via a `marathon` service registered in Consul                  | Marathon API address
- `marathon-user`          | None                                                                      | Marathon API user
- `marathon-password`      | None                                                                      | Marathon API password
- `marathon-no-verify-ssl` | False                                                                     | When True, disables SSL verification for the Marathon API
- `mesos`                  | Discovered via a `mesos` service with a `leader` tag registered in Consul | Mesos API address
- `mesos-principal`        | None                                                                      | Mesos principal for framework authentication
- `mesos-secret-path`      | /etc/sysconfig/mantl-api                                                  | A path to a file that contains the Mesos secret for framework authentication
- `mesos-no-verify-ssl`    | False                                                                     | When True, disables SSL verification for the Mesos API
- `listen`                 | :4001                                                                     | Listen for connections at this address
- `zookeeper`              | Discovered via a `marathon` service registered in Consul                  | Comma-delimited list of zookeeper servers
- `force-sync`             | False                                                                     | Forces a synchronization of all repository sources at startup
- `config-file`            | None                                                                      | Specifies an optional configuration file
+Configuration options:
+```bash
+--config-file string             The path to a (optional) configuration file
+--consul string                  Consul API address (default "http://localhost:8500")
+--consul-acl-token string        Consul ACL token for accessing mantl-install/apps path
+--consul-no-verify-ssl           Disable Consul SSL verification
+--consul-refresh-interval int    The number of seconds after which to check consul for package requests (default 10)
+--force-sync                     Force a synchronization of respository all sources at startup
+--listen string                  listen for connections on this address (default ":4001")
+--log-format string              specify output (text or json) (default "text")
+--log-level string               one of debug, info, warn, error, or fatal (default "info")
+--marathon string                Marathon API address
+--marathon-no-verify-ssl         Disable Marathon SSL verification
+--marathon-password string       Marathon API password
+--marathon-user string           Marathon API user
+--mesos string                   Mesos API address
+--mesos-no-verify-ssl            Disable Mesos SSL verification
+--mesos-principal string         Mesos principal for framework authentication
+--mesos-secret string            Deprecated. Use mesos-secret-path instead
+--mesos-secret-path string       Path to a file on host sytem that contains the mesos secret for framework authentication (default "/etc/sysconfig/mantl-api")
+--vault-cubbyhole-token string   token for retrieving token from vault
+--vault-token string             token for retrieving secrets from vault
+--zookeeper string               Comma-delimited list of zookeeper servers
+```
 
 Every option can be set via environment variables prefixed with `MANTL_API`. For example, you can use `MANTL_API_LOG_LEVEL` for `log-level`, `MANTL_API_CONSUL` for `consul`, and so on. You can also specify all configuration from a [TOML](https://github.com/toml-lang/toml) configuration file using the `config-file` argument.
 
