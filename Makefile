@@ -1,29 +1,28 @@
-TEST?=./...
 NAME = $(shell awk -F\" '/^const Name/ { print $$2 }' main.go)
 VERSION = $(shell awk -F\" '/^const Version/ { print $$2 }' main.go)
-DEPS = $(shell go list -f '{{range .TestImports}}{{.}} {{end}}' ./...)
+TESTDEPS = $(shell go list -f '{{range .TestImports}}{{.}} {{end}}' $(shell glide novendor))
 DOCKERREPO=ciscocloud
 
 all: deps build
 
 deps:
-	go get -d -v ./...
-	echo $(DEPS) | xargs -n1 go get -d
+	glide install
+	echo $(TESTDEPS) | xargs -n1 go get
 
 updatedeps:
-	go get -u -v ./...
-	echo $(DEPS) | xargs -n1 go get -d
+	glide update
 
 quickbuild:
+	@mkdir -p bin/
 	go build -o bin/$(NAME)
 
 build: deps quickbuild
 
 quicktest:
-	go test $(TEST) $(TESTARGS) -timeout=30s -parallel=4
+	go test $(shell glide novendor) -timeout=30s -parallel=4
 
 test: deps quicktest
-	go vet $(TEST)
+	go vet $(shell glide novendor)
 
 docker: deps
 	find . -name ".DS_Store" -depth -exec rm {} \;
