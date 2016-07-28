@@ -6,15 +6,16 @@ DOCKERREPO=ciscocloud
 all: deps build
 
 deps:
-	glide install
+	glide install --strip-vcs --strip-vendor --update-vendored
+	find vendor -not -name '*.go' -not -name '*.s' -not -name '*.pl' -not -name '*.c' -not -name LICENSE -type f -delete
 	echo $(TESTDEPS) | xargs -n1 go get
 
 updatedeps:
-	glide update
+	glide update --strip-vcs --strip-vendor --update-vendored
+	find vendor -not -name '*.go' -not -name '*.s' -not -name '*.pl' -not -name '*.c' -not -name LICENSE -type f -delete
 
 quickbuild:
-	@mkdir -p bin/
-	go build -o bin/$(NAME)
+	go build .
 
 build: deps quickbuild
 
