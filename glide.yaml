@@ -1,0 +1,15 @@
+package: github.com/CiscoCloud/mantl-api
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/Wuvist/mustache
+- package: github.com/hashicorp/consul
+  subpackages:
+  - api
+- package: github.com/hashicorp/go-cleanhttp
+- package: github.com/julienschmidt/httprouter
+- package: github.com/samuel/go-zookeeper
+  subpackages:
+  - zk
+- package: github.com/spf13/cobra
+- package: github.com/spf13/pflag
+- package: github.com/spf13/viper
