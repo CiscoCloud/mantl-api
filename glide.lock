@@ -1,12 +1,12 @@
 hash: ee4c8e8abb9471c3bc74c9fd6e279e0c0c27abd6bd7bbd1dd342e9ac94b3d523
-updated: 2016-07-01T20:00:26.932508829-04:00
+updated: 2016-07-28T14:47:08.924543133-04:00
 imports:
 - name: github.com/BurntSushi/toml
-  version: f0aeabca5a127c4078abb8c8d64298b147264b55
+  version: 99064174e013895bbd9b025c31100bd1d9b590ca
 - name: github.com/fsnotify/fsnotify
   version: a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb
 - name: github.com/hashicorp/consul
-  version: dbe6af21d5ff4ee6b62856ce4e3bc2af97f76888
+  version: 9a353ddd6015378d169f2bee8b3aea44f3d3a03d
   subpackages:
   - api
 - name: github.com/hashicorp/go-cleanhttp
@@ -30,9 +30,9 @@ imports:
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/julienschmidt/httprouter
-  version: 77366a47451a56bb3ba682481eed85b64fea14e8
+  version: fb79d6a91d3e4a9ecb6d945b218d78fc0d9b1939
 - name: github.com/magiconair/properties
-  version: c265cfa48dda6474e208715ca93e987829f572f8
+  version: b3f6dd549956e8a61ea4a686a1c02a33d5bdda4b
 - name: github.com/mitchellh/mapstructure
   version: 281073eb9eb092240d33ef253c404f1cca550309
 - name: github.com/samuel/go-zookeeper
@@ -40,23 +40,35 @@ imports:
   subpackages:
   - zk
 - name: github.com/Sirupsen/logrus
-  version: f3cfb454f4c209e6668c95216c4744b8fddb2356
+  version: a283a10442df8dc09befd873fab202bf8a253d6a
 - name: github.com/spf13/cast
   version: 27b586b42e29bec072fe7379259cc719e1289da6
 - name: github.com/spf13/cobra
-  version: 6a8bd97bdb1fc0d08a83459940498ea49d3e8c93
+  version: f62e98d28ab7ad31d707ba837a966378465c7b57
 - name: github.com/spf13/jwalterweatherman
   version: 33c24e77fb80341fe7130ee7c594256ff08ccc46
 - name: github.com/spf13/pflag
-  version: 367864438f1b1a3c7db4da06a2f55b144e6784e0
+  version: 1560c1005499d61b80f865c04d39ca7505bf7f0b
 - name: github.com/spf13/viper
-  version: c1ccc378a054ea8d4e38d8c67f6938d4760b53dd
+  version: b53595fb56a492ecef90ee0457595a999eb6ec15
 - name: github.com/Wuvist/mustache
   version: 2ee240866a6cf32c8b0176c9a90c602ff5329092
 - name: golang.org/x/sys
-  version: 62bee037599929a6e9146f29d10dd5208c43507d
+  version: a646d33e2ee3172a661fc09bca23bb4889a41bc8
   subpackages:
   - unix
 - name: gopkg.in/yaml.v2
-  version: a83829b6f1293c91addabc89d0571c246397bbf4
-devImports: []
+  version: e4d366fc3c7938e2958e662b4258c7a89e1f0e3e
+testImports:
+- name: github.com/davecgh/go-spew
+  version: 5215b55f46b2b919f50a1df0eaa5886afe4e3b3d
+  subpackages:
+  - spew
+- name: github.com/pmezard/go-difflib
+  version: 792786c7400a136282c1664665ae0a8db921c6c2
+  subpackages:
+  - difflib
+- name: github.com/stretchr/testify
+  version: d77da356e56a7428ad25149ca77381849a6a5232
+  subpackages:
+  - assert
