@@ -42,6 +42,7 @@ func main() {
 	rootCmd.PersistentFlags().String("log-level", "info", "one of debug, info, warn, error, or fatal")
 	rootCmd.PersistentFlags().String("log-format", "text", "specify output (text or json)")
 	rootCmd.PersistentFlags().String("consul", "http://localhost:8500", "Consul Api address")
+	rootCmd.PersistentFlags().String("consul-acl-token", "", "Consul ACL token for accessing mantl-install/apps path")
 	rootCmd.PersistentFlags().Bool("consul-no-verify-ssl", false, "Consul SSL verification")
 	rootCmd.PersistentFlags().String("marathon", "", "Marathon Api address")
 	rootCmd.PersistentFlags().String("marathon-user", "", "Marathon Api user")
@@ -175,6 +176,10 @@ func consulClient() *consul.Client {
 			InsecureSkipVerify: true,
 		}
 		consulConfig.HttpClient.Transport = transport
+	}
+
+	if aclToken := viper.GetString("consul-acl-token"); aclToken != "" {
+		consulConfig.Token = aclToken
 	}
 
 	client, err := consul.NewClient(consulConfig)

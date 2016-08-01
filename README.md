@@ -120,10 +120,11 @@ After a few moments, Mantl API should be running on your cluster.
 ### Options
 
  Argument                 | Default                                                                   | Description
---------------------------|---------------------------------------------------------------------------|---------------------------------------------------------------
+--------------------------|---------------------------------------------------------------------------|----------------------------------------------------------------------------
  `log-level`              | info                                                                      | one of debug, info, warn, error, or fatal
  `log-format`             | text                                                                      | specify output (text or json)
  `consul`                 | http://localhost:8500                                                     | Consul API address
+ `consul-acl-token`       | None                                                                      | When specified, mantl-api will use this token to access the Consul K/V
  `consul-no-verify-ssl`   | False                                                                     | When True, disables SSL verification for the Consul API
  `marathon`               | Discovered via a `marathon` service registered in Consul                  | Marathon API address
  `marathon-user`          | None                                                                      | Marathon API user
