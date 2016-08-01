@@ -16,6 +16,7 @@ import (
 	log "github.com/Sirupsen/logrus"
 	consul "github.com/hashicorp/consul/api"
 	"github.com/hashicorp/go-cleanhttp"
+	vault "github.com/hashicorp/vault/api"
 	"github.com/spf13/cobra"
 	"github.com/spf13/pflag"
 	"github.com/spf13/viper"
@@ -39,24 +40,27 @@ func main() {
 		},
 	}
 
-	rootCmd.PersistentFlags().String("log-level", "info", "one of debug, info, warn, error, or fatal")
+	rootCmd.PersistentFlags().String("config-file", "", "The path to a (optional) configuration file")
+	rootCmd.PersistentFlags().String("consul-acl-token", "", "Consul ACL token for accessing mantl-install/apps path")
+	rootCmd.PersistentFlags().Bool("consul-no-verify-ssl", false, "Disable Consul SSL verification")
+	rootCmd.PersistentFlags().Int("consul-refresh-interval", 10, "The number of seconds after which to check consul for package requests")
+	rootCmd.PersistentFlags().String("consul", "http://localhost:8500", "Consul API address")
+	rootCmd.PersistentFlags().Bool("force-sync", false, "Force a synchronization of respository all sources at startup")
+	rootCmd.PersistentFlags().String("listen", ":4001", "listen for connections on this address")
 	rootCmd.PersistentFlags().String("log-format", "text", "specify output (text or json)")
-	rootCmd.PersistentFlags().String("consul", "http://localhost:8500", "Consul Api address")
-	rootCmd.PersistentFlags().Bool("consul-no-verify-ssl", false, "Consul SSL verification")
-	rootCmd.PersistentFlags().String("marathon", "", "Marathon Api address")
-	rootCmd.PersistentFlags().String("marathon-user", "", "Marathon Api user")
-	rootCmd.PersistentFlags().String("marathon-password", "", "Marathon Api password")
-	rootCmd.PersistentFlags().Bool("marathon-no-verify-ssl", false, "Marathon SSL verification")
-	rootCmd.PersistentFlags().String("mesos", "", "Mesos Api address")
+	rootCmd.PersistentFlags().String("log-level", "info", "one of debug, info, warn, error, or fatal")
+	rootCmd.PersistentFlags().String("marathon", "", "Marathon API address")
+	rootCmd.PersistentFlags().Bool("marathon-no-verify-ssl", false, "Disable Marathon SSL verification")
+	rootCmd.PersistentFlags().String("marathon-password", "", "Marathon API password")
+	rootCmd.PersistentFlags().String("marathon-user", "", "Marathon API user")
+	rootCmd.PersistentFlags().String("mesos", "", "Mesos API address")
+	rootCmd.PersistentFlags().Bool("mesos-no-verify-ssl", false, "Disable Mesos SSL verification")
 	rootCmd.PersistentFlags().String("mesos-principal", "", "Mesos principal for framework authentication")
 	rootCmd.PersistentFlags().String("mesos-secret", "", "Deprecated. Use mesos-secret-path instead")
 	rootCmd.PersistentFlags().String("mesos-secret-path", "/etc/sysconfig/mantl-api", "Path to a file on host sytem that contains the mesos secret for framework authentication")
-	rootCmd.PersistentFlags().Bool("mesos-no-verify-ssl", false, "Mesos SSL verification")
-	rootCmd.PersistentFlags().String("listen", ":4001", "mantl-api listen address")
+	rootCmd.PersistentFlags().String("vault-cubbyhole-token", "", "token for retrieving token from vault")
+	rootCmd.PersistentFlags().String("vault-token", "", "token for retrieving secrets from vault")
 	rootCmd.PersistentFlags().String("zookeeper", "", "Comma-delimited list of zookeeper servers")
-	rootCmd.PersistentFlags().Bool("force-sync", false, "Force a synchronization of all sources")
-	rootCmd.PersistentFlags().String("config-file", "", "The path to a configuration file")
-	rootCmd.PersistentFlags().Int("consul-refresh-interval", 10, "The number of seconds after which to check consul for package requests")
 
 	for _, flags := range []*pflag.FlagSet{rootCmd.PersistentFlags()} {
 		err := viper.BindPFlags(flags)
@@ -94,6 +98,8 @@ func main() {
 func start() {
 	log.Infof("Starting %s v%s", Name, Version)
 	client := consulClient()
+
+	initVault()
 
 	marathonUrl := viper.GetString("marathon")
 	if marathonUrl == "" {
@@ -158,6 +164,58 @@ func start() {
 	wg.Wait()
 }
 
+func initVault() {
+	// set up vault client
+	var client *vault.Client
+	if viper.GetString("vault-cubbyhole-token") != "" || viper.GetString("vault-token") != "" {
+		config := vault.DefaultConfig()
+		err := config.ReadEnvironment()
+		if err != nil {
+			log.WithError(err).Fatal("Error reading environment for Vault configuration")
+		}
+		client, err = vault.NewClient(config)
+		if err != nil {
+			log.WithError(err).Fatal("Error initializing Vault client")
+		}
+	}
+
+	// unwrap real token
+	if wrapped := viper.GetString("vault-cubbyhole-token"); wrapped != "" {
+		token, err := client.Logical().Unwrap(wrapped)
+		if err != nil {
+			log.WithError(err).Fatal("Error unwrapping token")
+		} else if token.WrapInfo != nil {
+			log.Fatal("Secret appears to be doubly wrapped")
+		} else if token.Auth == nil {
+			log.Fatal("Secret contained no auth data")
+		}
+
+		viper.Set("vault-token", token.Auth.ClientToken)
+	}
+
+	// read secrets from vault
+	if token := viper.GetString("vault-token"); token != "" {
+		client.SetToken(token)
+
+		secret, err := client.Logical().Read("secret/mantl-api")
+		if err != nil {
+			log.WithError(err).Fatal("Error reading secret/mantl-api")
+		}
+
+		for _, secretName := range []string{
+			"mesos-principal", "mesos-secret",
+			"marathon-user", "marathon-password",
+		} {
+			secretValue, ok := secret.Data[secretName].(string)
+			if ok {
+				viper.Set(secretName, secretValue)
+			} else {
+				log.Warnf("secret/mantl-api didn't contain %s", secretName)
+			}
+		}
+	}
+}
+
 func consulClient() *consul.Client {
 	consulConfig := consul.DefaultConfig()
 	scheme, address, _, err := http.ParseUrl(viper.GetString("consul"))
@@ -175,6 +233,10 @@ func consulClient() *consul.Client {
 			InsecureSkipVerify: true,
 		}
 		consulConfig.HttpClient.Transport = transport
+	}
+
+	if aclToken := viper.GetString("consul-acl-token"); aclToken != "" {
+		consulConfig.Token = aclToken
 	}
 
 	client, err := consul.NewClient(consulConfig)
