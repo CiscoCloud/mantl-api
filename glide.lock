@@ -1,16 +1,24 @@
-hash: ee4c8e8abb9471c3bc74c9fd6e279e0c0c27abd6bd7bbd1dd342e9ac94b3d523
-updated: 2016-07-28T14:47:08.924543133-04:00
+hash: c0863e3d88efc1cf85894483142d43d1d700d9bb230e8515c97cee4377e4f7ee
+updated: 2016-07-28T18:01:12.144603211-04:00
 imports:
 - name: github.com/BurntSushi/toml
   version: 99064174e013895bbd9b025c31100bd1d9b590ca
+- name: github.com/fatih/structs
+  version: 14f46232cd7bc732dc67313a9e4d3d210e082587
 - name: github.com/fsnotify/fsnotify
   version: a8a77c9133d2d6fd8334f3260d06f60e8d80a5fb
 - name: github.com/hashicorp/consul
   version: 9a353ddd6015378d169f2bee8b3aea44f3d3a03d
   subpackages:
   - api
+- name: github.com/hashicorp/errwrap
+  version: 7554cd9344cec97297fa6649b055a8c98c2a1e55
 - name: github.com/hashicorp/go-cleanhttp
   version: 875fb671b3ddc66f8e2f0acc33829c8cb989a38d
+- name: github.com/hashicorp/go-multierror
+  version: d30f09973e19c1dfcd120b2d9c4f168e68d6b5d5
+- name: github.com/hashicorp/go-rootcerts
+  version: 6bb64b370b90e7ef1fa532be9e591a81c3493e00
 - name: github.com/hashicorp/hcl
   version: 578dd9746824a54637686b51a41bad457a56bcef
   subpackages:
@@ -27,12 +35,18 @@ imports:
   subpackages:
   - coordinate
   - serf
+- name: github.com/hashicorp/vault
+  version: f627c01df8d7bebb403cf899ca1beb24f5fc84cd
+  subpackages:
+  - api
 - name: github.com/inconshreveable/mousetrap
   version: 76626ae9c91c4f2a10f34cad8ce83ea42c93bb75
 - name: github.com/julienschmidt/httprouter
   version: fb79d6a91d3e4a9ecb6d945b218d78fc0d9b1939
 - name: github.com/magiconair/properties
   version: b3f6dd549956e8a61ea4a686a1c02a33d5bdda4b
+- name: github.com/mitchellh/go-homedir
+  version: 756f7b183b7ab78acdbbee5c7f392838ed459dda
 - name: github.com/mitchellh/mapstructure
   version: 281073eb9eb092240d33ef253c404f1cca550309
 - name: github.com/samuel/go-zookeeper

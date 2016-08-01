@@ -14,18 +14,16 @@ updatedeps:
 	glide update --strip-vcs --strip-vendor --update-vendored
 	find vendor -not -name '*.go' -not -name '*.s' -not -name '*.pl' -not -name '*.c' -not -name LICENSE -type f -delete
 
-quickbuild:
+build:
 	go build .
-
-build: deps quickbuild
 
 quicktest:
 	go test $(shell glide novendor) -timeout=30s -parallel=4
 
-test: deps quicktest
+test: quicktest
 	go vet $(shell glide novendor)
 
-docker: deps
+docker:
 	find . -name ".DS_Store" -depth -exec rm {} \;
 	docker build -t $(DOCKERREPO)/$(NAME) .
 	docker tag -f $(DOCKERREPO)/$(NAME) $(DOCKERREPO)/$(NAME):$(VERSION)
