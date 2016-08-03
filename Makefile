@@ -24,9 +24,9 @@ test: quicktest
 	go vet $(shell glide novendor)
 
 docker:
-	find . -name ".DS_Store" -depth -exec rm {} \;
+	find . -depth -name ".DS_Store" -exec rm {} \;
 	docker build -t $(DOCKERREPO)/$(NAME) .
-	docker tag -f $(DOCKERREPO)/$(NAME) $(DOCKERREPO)/$(NAME):$(VERSION)
+	docker tag $(DOCKERREPO)/$(NAME) $(DOCKERREPO)/$(NAME):$(VERSION)
 
 pushedge: docker
 	docker tag -f $(DOCKERREPO)/$(NAME) $(DOCKERREPO)/$(NAME):edge

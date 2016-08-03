@@ -10,7 +10,6 @@ install:
   - go get github.com/Masterminds/glide
 
 script:
-  - make deps
   - make test
 
 before_deploy:
